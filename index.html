@@ -145,7 +145,11 @@ button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 .lesson b { color: var(--hint); font: 16px/1.2 var(--font-display); letter-spacing: 0.05em; }
 .lesson p { grid-column: 1 / -1; margin: 0; font-size: 13.5px; color: var(--ink); }
 @keyframes lesson-in { from { opacity: 0; transform: translate(-50%, -14px); } to { opacity: 1; transform: translate(-50%, 0); } }
-.vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 55%, rgba(5, 3, 2, 0.6) 100%); }
+.vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse 72% 68% at 50% 50%, transparent 48%, rgba(4, 2, 1, 0.72) 100%); }
+/* Film grain: a tiny noise tile, nudged every frame-ish so it shimmers rather than sits on the glass. */
+.grain { position: fixed; inset: -40px; pointer-events: none; opacity: 0.045; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); animation: grain 0.6s steps(4) infinite; }
+@keyframes grain { 0% { transform: translate(0, 0); } 25% { transform: translate(-12px, 8px); } 50% { transform: translate(10px, -14px); } 75% { transform: translate(-6px, -4px); } 100% { transform: translate(0, 0); } }
+@media (prefers-reduced-motion: reduce) { .grain { animation: none; } }
 @media (max-width: 760px) {
   .card { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter) + 54px); left: var(--gutter); right: var(--gutter); width: auto; transform: none; max-height: 42vh; padding: 12px 14px 14px; gap: 9px; animation-name: sheet-in; }
   .card .alts { display: none; }
@@ -250,6 +254,7 @@ html.tv .phones p { font-size: 18px; }
 <body>
 <canvas id="scene" aria-label="Backgammon board"></canvas>
 <div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
 
 <header class="bar top">
   <section class="panel status-panel">
@@ -274,6 +279,7 @@ html.tv .phones p { font-size: 18px; }
       <button id="learnBtn" type="button" class="btn small toggle" aria-pressed="false">Learning mode</button>
       <button id="tvBtn" type="button" class="btn small toggle" aria-pressed="false">TV mode</button>
       <button id="phonesBtn" type="button" class="btn small">Phones</button>
+      <button id="camBtn" type="button" class="btn small toggle" aria-pressed="true" title="Action follows the dice and each move">Camera: Action</button>
       <button id="qualityBtn" type="button" class="btn small" title="Smooth turns off glow and dust for slower devices">Graphics: High</button>
       <button id="fullBtn" type="button" class="btn small" hidden>Full screen</button>
       <button id="newBtn" type="button" class="btn small">New game</button>
@@ -334,6 +340,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import * as CANNON from 'cannon-es';
 
 /* ------------------------------------------------------------------ *
@@ -996,9 +1003,9 @@ try {
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 0.92;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap; // filtered, with a widened kernel (shadow.radius) for soft edges
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0806);
@@ -1017,26 +1024,30 @@ controls.minDistance = 8;
 controls.maxDistance = 50;
 camera.position.set(0.9, 15, 12);
 
-scene.add(new THREE.HemisphereLight(0xffe6c4, 0x1a120c, 0.2));
-const lamp = new THREE.SpotLight(0xffdcae, 2.6, 0, 0.62, 0.55, 0);
-lamp.position.set(1.5, 21.2, 2.5);
+scene.add(new THREE.HemisphereLight(0xffe2bc, 0x120c08, 0.11));
+// The pendant lamp: a real inverse-square falloff and a wide soft edge make a pool of warm light
+// that is brightest on the board and fades into shadow towards the table's edge.
+const lamp = new THREE.SpotLight(0xffcf94, 560, 0, 0.52, 0.72, 2);
+lamp.position.set(-2.2, 17.2, -2.6);
 lamp.target.position.set(0.9, 0, 0.3);
-lamp.angle = 0.7; lamp.penumbra = 0.65;
 lamp.castShadow = true;
 lamp.shadow.mapSize.set(2048, 2048);
-lamp.shadow.bias = -0.0004;
-lamp.shadow.normalBias = 0.02;
-lamp.shadow.camera.near = 6;
+lamp.shadow.bias = -0.0006;
+lamp.shadow.normalBias = 0.03;
+lamp.shadow.radius = 3;
 lamp.shadow.camera.near = 8;
 lamp.shadow.camera.far = 50;
 scene.add(lamp, lamp.target);
 // Cold moonlight from the window on the left wall.
-const fill = new THREE.DirectionalLight(0x8fa8d8, 0.22);
+const fill = new THREE.DirectionalLight(0x8fa8d8, 0.16);
 fill.position.set(-30, 18, -8);
 scene.add(fill);
 
 let viewPortrait = null, tvMode = false, quality = 'high';
+// Action camera state: `home` is the player's own view, restored when a shot ends.
+const cam = { mode: 'action', home: null, w: 0, focus: new THREE.Vector3(), haveFocus: false, follow: null, kind: null, holdUntil: 0, shake: 0, slowUntil: 0, start: 0 };
 function fitView() {
+  if (cam.home) { camera.position.copy(cam.home.pos); controls.target.copy(cam.home.target); }
   const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
@@ -1053,6 +1064,7 @@ function fitView() {
     dir = portrait ? new THREE.Vector3(Math.sin(polar), Math.cos(polar), 0) : new THREE.Vector3(0, Math.cos(polar), Math.sin(polar));
   } else dir = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(dir, d);
+  if (cam.home) cam.home.pos.copy(camera.position);
   controls.maxDistance = Math.min(50, Math.max(40, d * 1.5));
   view.dirty = true; // re-apply the card offset at the new size
   renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio, 2) : 1);
@@ -1060,11 +1072,19 @@ function fitView() {
   if (composer) { composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); composer.setSize(w, h); }
 }
 // Bloom so the lamp, the fire and the move highlights glow.
-let composer = null;
+let composer = null, aoPass = null;
 try {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new UnrealBloomPass(new THREE.Vector2(512, 512), 0.5, 0.6, 2.1));
+  // Ambient occlusion darkens the creases: under and between checkers, along the frame and the bar.
+  try {
+    aoPass = new GTAOPass(scene, camera, 512, 512);
+    aoPass.updateGtaoMaterial({ radius: 0.45, distanceExponent: 2, thickness: 0.6, scale: 1, samples: 12 });
+    aoPass.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+    aoPass.blendIntensity = 0.7;
+    composer.addPass(aoPass);
+  } catch (err) { aoPass = null; }
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(512, 512), 0.45, 0.6, 1.4));
   composer.addPass(new OutputPass());
 } catch (err) { composer = null; }
 window.addEventListener('resize', fitView);
@@ -1123,9 +1143,9 @@ function noiseTex(r, g0, b0, amt, repeat) {
 const feltTex = noiseTex(30, 62, 54, 14, [7, 6]);
 const linenTex = noiseTex(200, 200, 200, 26, [2, 2]);
 
-const woodMatX = new THREE.MeshPhysicalMaterial({ map: woodTexX, roughness: 0.42, clearcoat: 0.55, clearcoatRoughness: 0.28, envMapIntensity: 0.4 });
+const woodMatX = new THREE.MeshPhysicalMaterial({ map: woodTexX, roughness: 0.45, clearcoat: 0.45, clearcoatRoughness: 0.32, envMapIntensity: 0.22 });
 const woodMatZ = woodMatX.clone(); woodMatZ.map = woodTexZ;
-const feltMat = new THREE.MeshStandardMaterial({ map: feltTex, roughness: 1, envMapIntensity: 0.15 });
+const feltMat = new THREE.MeshStandardMaterial({ map: feltTex, roughness: 1, envMapIntensity: 0.04 });
 const brassMat = new THREE.MeshStandardMaterial({ color: 0xc9a35c, metalness: 1, roughness: 0.32, envMapIntensity: 1 });
 
 /* ------------------------------------------------------------------ *
@@ -1199,14 +1219,14 @@ function triangleGeo(p) {
   g.computeVertexNormals();
   return g;
 }
-const boneMat = new THREE.MeshStandardMaterial({ color: 0xe6d6b8, map: linenTex, roughness: 0.85, envMapIntensity: 0.2, side: THREE.DoubleSide });
-const bloodMat = new THREE.MeshStandardMaterial({ color: 0x8c2f2b, map: linenTex, roughness: 0.85, envMapIntensity: 0.2, side: THREE.DoubleSide });
+const boneMat = new THREE.MeshStandardMaterial({ color: 0xcdb994, map: linenTex, roughness: 0.9, envMapIntensity: 0.06, side: THREE.DoubleSide });
+const bloodMat = new THREE.MeshStandardMaterial({ color: 0x7c2724, map: linenTex, roughness: 0.9, envMapIntensity: 0.06, side: THREE.DoubleSide });
 const overlays = {};
 for (let p = 1; p <= 24; p++) {
   const c = pointCol(p), light = p <= 12 ? c % 2 === 0 : c % 2 === 1;
   const geo = triangleGeo(p);
   const tri = new THREE.Mesh(geo, light ? boneMat : bloodMat);
-  tri.position.y = 0.004; tri.receiveShadow = true;
+  tri.position.y = 0.02; tri.receiveShadow = true;
   scene.add(tri);
   const ov = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
   ov.position.y = 0.008; ov.visible = false;
@@ -1417,7 +1437,7 @@ for (const [x, z, ry, len] of [[0, -RZ, 0, 2 * RX], [0, RZ, Math.PI, 2 * RX], [-
 addMesh(new THREE.PlaneGeometry(2 * RX, 2 * RZ), roomMat({ color: 0x1a1410 }), 0, CEIL_Y, 0, { cast: false, rx: Math.PI / 2 });
 
 // The card table
-const tableMat = new THREE.MeshPhysicalMaterial({ map: tableTex, roughness: 0.32, clearcoat: 0.85, clearcoatRoughness: 0.18, envMapIntensity: 0.3 });
+const tableMat = new THREE.MeshPhysicalMaterial({ map: tableTex, roughness: 0.48, clearcoat: 0.45, clearcoatRoughness: 0.38, envMapIntensity: 0.14 });
 const TCX = 0.9, TCZ = 0.3;
 addMesh(new RoundedBoxGeometry(36, 1.2, 28, 4, 0.45), tableMat, TCX, -0.36 - 0.6, TCZ);
 for (const [w, d, x, z] of [[32, 0.8, 0, 12.2], [32, 0.8, 0, -12.2], [0.8, 24, 15.6, 0], [0.8, 24, -15.6, 0]]) boxAt(w, 2.4, d, tableMat, TCX + x, -2.76, TCZ + z);
@@ -1425,7 +1445,7 @@ const legGeo = new THREE.LatheGeometry([[0.01, 0], [0.75, 0], [0.9, 0.6], [0.6, 
 for (const [x, z] of [[15.2, 11.8], [-15.2, 11.8], [15.2, -11.8], [-15.2, -11.8]]) addMesh(legGeo, tableMat, TCX + x, FLOOR_Y, TCZ + z);
 
 // Pendant lamp over the table
-const lampX = lamp.position.x, lampZ = lamp.position.z, lampY = 23;
+const lampX = lamp.position.x, lampZ = lamp.position.z, lampY = 18.9;
 addMesh(new THREE.CylinderGeometry(0.07, 0.07, CEIL_Y - lampY - 2, 6), roomMat({ color: 0x111111 }), lampX, (CEIL_Y + lampY + 2) / 2, lampZ, { cast: false });
 const shadeGeo = new THREE.LatheGeometry([[0.6, 3.2], [1.1, 3], [2.4, 2], [4.2, 0.6], [5.0, 0]].map(([r, y]) => new THREE.Vector2(r, y)), 48);
 addMesh(shadeGeo, new THREE.MeshStandardMaterial({ color: 0x1d3a2c, metalness: 0.35, roughness: 0.35, side: THREE.FrontSide }), lampX, lampY - 1, lampZ, { cast: false });
@@ -1600,6 +1620,16 @@ books.forEach((b, i) => {
 bookMesh.receiveShadow = true;
 scene.add(bookMesh);
 
+// A faint shaft of light under the shade: brightest at the bulb, fading towards the table and at its edges.
+const beam = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 13, lampY - 2, 48, 1, true), new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+  uniforms: { color: { value: new THREE.Color(1.0, 0.78, 0.5) } },
+  vertexShader: 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+  fragmentShader: 'uniform vec3 color; varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(abs(dot(vN, vV)), 1.6); float fade = pow(vUv.y, 1.8); gl_FragColor = vec4(color * edge * fade * 0.075, 1.0); }',
+}));
+beam.position.set(lampX, (lampY - 2) / 2 + 0.05, lampZ);
+scene.add(beam);
+
 // Dust drifting through the lamp light
 const DUST = 220;
 const dustGeo = new THREE.BufferGeometry(), dustArr = new Float32Array(DUST * 3), dustSeed = [];
@@ -1679,8 +1709,8 @@ const checkerGeo = new THREE.LatheGeometry([
   [0, 0], [R - 0.02, 0], [R, 0.02], [R, H - 0.025], [R - 0.015, H], [R - 0.07, H],
   [R - 0.085, H - 0.014], [R - 0.12, H - 0.014], [R - 0.135, H], [0, H],
 ].map(([x, y]) => new THREE.Vector2(x, y - H / 2)), 56);
-const ivory = new THREE.MeshPhysicalMaterial({ color: 0xece2cc, roughness: 0.38, clearcoat: 0.7, clearcoatRoughness: 0.25, envMapIntensity: 0.5, emissive: 0xc9a35c, emissiveIntensity: 0 });
-const ebony = new THREE.MeshPhysicalMaterial({ color: 0x1f1b19, roughness: 0.3, clearcoat: 0.9, clearcoatRoughness: 0.18, envMapIntensity: 0.6, emissive: 0xc9a35c, emissiveIntensity: 0 });
+const ivory = new THREE.MeshPhysicalMaterial({ color: 0xdcd0b5, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.3, envMapIntensity: 0.3, emissive: 0xc9a35c, emissiveIntensity: 0 });
+const ebony = new THREE.MeshPhysicalMaterial({ color: 0x1f1b19, roughness: 0.32, clearcoat: 0.85, clearcoatRoughness: 0.2, envMapIntensity: 0.45, emissive: 0xc9a35c, emissiveIntensity: 0 });
 const checkers = [];
 for (let id = 0; id < 30; id++) {
   const color = id < 15 ? W : B;
@@ -1886,7 +1916,9 @@ async function throwDice(list, sides) {
     if (myGen !== gen) return null;
     launchDice(list, sides);
     Snd.toss();
+    camFollow('dice', () => diceCentre(list));
     const res = await new Promise((resolve) => { rolling = { list, t: 0, still: 0, resolve }; });
+    camRelease(res.ok ? 1100 : 250);
     if (myGen !== gen) return null;
     if (res.ok) return res.values;
     toast(res.reason);
@@ -2034,8 +2066,14 @@ async function doMove(m, pl) {
   state = applyMove(state, pl, m);
   rem.splice(rem.indexOf(m.die), 1);
   jobs.push(animateChecker(id, dstKey, stacks[dstKey].length - 1, m.hit ? 0.12 : 0));
+  camFollow('move', () => checkers[id].mesh.position);
+  if (m.hit && cam.mode === 'action') {
+    const a = checkers[id].anim, landMs = ((a ? a.dur : 0.4) + 0.12) * 1000;
+    setTimeout(() => { camPunch(0.32); cam.slowUntil = performance.now() + 520; }, landMs);
+  }
   refreshHud();
   await Promise.all(jobs);
+  camRelease(650);
 }
 
 async function playPath(path) {
@@ -2107,6 +2145,8 @@ function gameOver(pl) {
   }
   score[sideKey(pl)] += pts;
   for (const id of stacks[pl === W ? 'offW' : 'offB']) sparkle(checkers[id].mesh.position, 0xffd27a, 24);
+  camFollow('win', () => new THREE.Vector3(0.9, 0, 0.3));
+  setTimeout(() => camRelease(0), 6000);
   phase = 'over'; rem = []; legal = [];
   const verb = mode === 'ai' && pl === W ? 'win' : 'wins';
   setStatus(`${who(pl)} ${verb}${kind}, ${pts} point${pts > 1 ? 's' : ''}.`);
@@ -2498,7 +2538,7 @@ const KEY_NAMES = {
   Escape: 'back', Esc: 'back', Backspace: 'back', GoBack: 'back', BrowserBack: 'back', Back: 'back', Exit: 'back',
   ' ': 'primary', MediaPlayPause: 'primary', MediaPlay: 'primary', Play: 'primary', ColorF2Yellow: 'primary',
   ColorF0Red: 'hint', ColorF1Green: 'undo', ColorF3Blue: 'tv',
-  h: 'hint', H: 'hint', u: 'undo', U: 'undo', t: 'tv', T: 'tv', p: 'phones', P: 'phones',
+  h: 'hint', H: 'hint', u: 'undo', U: 'undo', t: 'tv', T: 'tv', p: 'phones', P: 'phones', c: 'camera', C: 'camera',
 };
 const KEY_CODES = {
   37: 'left', 38: 'up', 39: 'right', 40: 'down', 21: 'left', 19: 'up', 22: 'right', 20: 'down', // desktop, Android TV D-pad
@@ -2613,6 +2653,7 @@ function navAction(act, input = 'keys') {
   navInput = input;
   if (act === 'tv') { setTv(!tvMode); return; }
   if (act === 'phones') { togglePhones(); return; }
+  if (act === 'camera') { setCamMode(cam.mode === 'action' ? 'classic' : 'action'); toast(`Camera: ${cam.mode === 'action' ? 'Action' : 'Classic'}`); return; }
   if (!$('phonesPanel').hidden && (act === 'back' || act === 'ok')) { togglePhones(false); return; }
   if (!$('lesson').hidden && (act === 'ok' || act === 'back')) { $('lesson').hidden = true; return; }
   // A coach card is open: move between its buttons.
@@ -2770,7 +2811,8 @@ let qualityChosen = false;
 function setQuality(q, chosen = true) {
   quality = q;
   if (chosen) { qualityChosen = true; try { localStorage.setItem('walnut-bg-quality', q); } catch (err) { /* storage unavailable */ } }
-  dustPts.visible = emberPts.visible = q === 'high';
+  dustPts.visible = emberPts.visible = beam.visible = q === 'high';
+  if (aoPass) aoPass.enabled = q === 'high';
   lamp.shadow.mapSize.set(q === 'high' ? 2048 : 1024, q === 'high' ? 2048 : 1024);
   if (lamp.shadow.map) { lamp.shadow.map.dispose(); lamp.shadow.map = null; }
   $('qualityBtn').textContent = `Graphics: ${q === 'high' ? 'High' : 'Smooth'}`;
@@ -3008,12 +3050,84 @@ $('phonesBtn').addEventListener('click', () => togglePhones());
 $('phonesClose').addEventListener('click', () => togglePhones(false));
 
 /* ------------------------------------------------------------------ *
+ *  Action camera: follows the dice and each move, then glides home    *
+ * ------------------------------------------------------------------ */
+function diceCentre(list) {
+  const c = new THREE.Vector3();
+  for (const d of list) c.add(d.body.position);
+  return c.multiplyScalar(1 / Math.max(1, list.length));
+}
+function camFollow(kind, getter) {
+  if (cam.mode !== 'action' || intro || reducedMotion) return;
+  if (!cam.home) { cam.home = { pos: camera.position.clone(), target: controls.target.clone() }; cam.haveFocus = false; }
+  if (cam.kind !== kind) cam.start = performance.now();
+  cam.follow = getter; cam.kind = kind; cam.holdUntil = 0;
+  controls.enabled = false;
+}
+function camRelease(holdMs = 0) {
+  if (!cam.follow) return;
+  cam.follow = null;
+  cam.holdUntil = performance.now() + holdMs;
+}
+function camPunch(strength) { cam.shake = Math.max(cam.shake, strength); }
+const _sph = new THREE.Spherical(), _tgt = new THREE.Vector3(), _off = new THREE.Vector3();
+// Returns true while the action camera is driving the view.
+function updateCamera(dt, now) {
+  if (!cam.home) return false;
+  const active = !!cam.follow || now < cam.holdUntil;
+  cam.w += ((active ? 1 : 0) - cam.w) * (1 - Math.exp(-dt * (active ? 2.6 : 2.2)));
+  if (cam.follow) {
+    const p = cam.follow();
+    if (p) {
+      if (!cam.haveFocus) { cam.focus.copy(p); cam.haveFocus = true; }
+      else cam.focus.lerp(p, 1 - Math.exp(-dt * (cam.kind === 'dice' ? 5 : 3.5)));
+    }
+  }
+  const H = cam.home;
+  _sph.setFromVector3(_off.copy(H.pos).sub(H.target));
+  const zoom = cam.kind === 'dice' ? 0.5 : cam.kind === 'win' ? 0.8 : 0.72;
+  _sph.radius *= 1 - (1 - zoom) * cam.w;
+  _sph.phi = Math.min(1.15, _sph.phi + (cam.kind === 'dice' ? 0.2 : cam.kind === 'win' ? 0.25 : 0.1) * cam.w); // drop lower for drama
+  // Swing slightly towards the action for parallax; the victory shot slowly circles the board.
+  _sph.theta += clamp(-cam.focus.x * 0.018, -0.18, 0.18) * cam.w;
+  if (cam.kind === 'win') _sph.theta += ((now - cam.start) / 1000) * 0.32 * cam.w;
+  _tgt.copy(H.target).lerp(cam.focus, (cam.kind === 'win' ? 0.4 : cam.kind === 'dice' ? 0.82 : 0.6) * cam.w);
+  _tgt.y *= 0.4;
+  camera.position.setFromSpherical(_sph).add(_tgt);
+  if (cam.shake > 0.002) {
+    camera.position.x += (Math.random() - 0.5) * cam.shake;
+    camera.position.y += (Math.random() - 0.5) * cam.shake * 0.6;
+    camera.position.z += (Math.random() - 0.5) * cam.shake;
+    cam.shake *= Math.exp(-dt * 7);
+  }
+  camera.lookAt(_tgt);
+  if (!active && cam.w < 0.003) {
+    camera.position.copy(H.pos); controls.target.copy(H.target); camera.lookAt(H.target);
+    cam.home = null; cam.kind = null; cam.haveFocus = false; cam.shake = 0;
+    controls.enabled = true;
+    return false;
+  }
+  return true;
+}
+function setCamMode(m, save = true) {
+  cam.mode = reducedMotion ? 'classic' : m;
+  if (cam.mode === 'classic') { cam.follow = null; cam.holdUntil = 0; }
+  $('camBtn').textContent = `Camera: ${cam.mode === 'action' ? 'Action' : 'Classic'}`;
+  $('camBtn').setAttribute('aria-pressed', String(cam.mode === 'action'));
+  if (save) try { localStorage.setItem('walnut-bg-cam', cam.mode); } catch (err) { /* storage unavailable */ }
+}
+$('camBtn').addEventListener('click', () => setCamMode(cam.mode === 'action' ? 'classic' : 'action'));
+try { const saved = localStorage.getItem('walnut-bg-cam'); setCamMode(saved === 'classic' ? 'classic' : 'action', false); } catch (err) { setCamMode('action', false); }
+
+/* ------------------------------------------------------------------ *
  *  Main loop                                                          *
  * ------------------------------------------------------------------ */
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000);
+  const rawDt = Math.min(0.05, (now - last) / 1000);
   last = now;
+  // A hit in action mode plays out in brief slow motion.
+  const dt = now < cam.slowUntil ? rawDt * 0.35 : rawDt;
   updateCheckers(dt);
   world.step(1 / 120, dt, 8);
   updateDice(dt);
@@ -3044,7 +3158,8 @@ function frame(now) {
   updateHintAnim(dt);
   updateBursts(dt);
   updateRoom(dt, now);
-  if (intro) updateIntro(dt); else controls.update();
+  if (intro) updateIntro(rawDt);
+  else if (!updateCamera(rawDt, now)) controls.update();
   updateNav(now, dt);
   updateViewShift(dt);
   pushPhones(now);

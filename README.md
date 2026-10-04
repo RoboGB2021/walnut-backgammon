@@ -94,6 +94,12 @@ network connection.
     Phones only work from the GitHub Pages copy, not from inside an embedded
     frame.
 
+- **Action camera.** **Camera: Action** (the default; toggle with the button or
+  <kbd>C</kbd>) swoops low to follow the dice as they tumble, holds on the
+  result, then follows each checker as it moves. A hit gives a camera jolt and a
+  moment of slow motion, and a win gets a slow victory orbit. The camera stays
+  still while you choose your move. **Classic** keeps the camera where you put it.
+
 ## Controls
 
 | Action | Input |
@@ -107,3 +113,5 @@ network connection.
 | Choose / select / cancel (keyboard or remote) | Arrow keys / <kbd>Enter</kbd> (OK) / <kbd>Esc</kbd> (Back) |
 | Gamepad | D-pad or stick to choose, A select, B back, X hint, Y undo, Start roll / end turn |
 | Toggle TV mode | **TV mode** or <kbd>T</kbd> |
+| Action / Classic camera | **Camera** or <kbd>C</kbd> |
+| Phones panel | **Phones** or <kbd>P</kbd> |
