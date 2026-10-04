@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#120e0b">
+<title>Walnut Backgammon Controller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Marcellus+SC&display=swap">
+<style>
+/* Layout: one column for a phone held upright; your board fills the middle, big thumb buttons at the bottom. */
+:root {
+  color-scheme: dark;
+  --bg: #120e0b;
+  --panel: #1c1611;
+  --edge: rgba(201, 163, 92, 0.25);
+  --ink: #f0e6d2;
+  --ink-dim: #b5a68c;
+  --brass: #c9a35c;
+  --hint: #5fd4c4;
+  --felt: #1f3d36;
+  --wood: #5b3a23;
+  --bone: #e6d6b8;
+  --blood: #8c2f2b;
+  --ivory: #ece2cc;
+  --ebony: #221d1a;
+  --line: rgba(240, 230, 210, 0.14);
+  --font-display: "Marcellus SC", Georgia, serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--font-body); overscroll-behavior: none; }
+body { display: flex; justify-content: center; }
+main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-direction: column; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px calc(env(safe-area-inset-bottom, 0px) + 14px); }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.who { display: flex; align-items: center; gap: 10px; font: 20px/1 var(--font-display); letter-spacing: 0.06em; color: var(--brass); }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); flex: none; }
+.swatch.w { background: var(--ivory); }
+.swatch.b { background: var(--ebony); border-color: rgba(240, 230, 210, 0.4); }
+.conn { font-size: 12.5px; color: var(--ink-dim); display: flex; align-items: center; gap: 6px; text-align: right; }
+.conn::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #e8b45a; flex: none; }
+.conn.ok::before { background: #8fd18a; }
+.conn.bad::before { background: #ee8170; }
+.status-box { background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; padding: 10px 14px; display: grid; gap: 4px; }
+.status { margin: 0; font-size: 18px; font-weight: 600; text-wrap: balance; }
+.status-sub { margin: 0; font-size: 13px; color: var(--ink-dim); }
+.status-box.mine { border-color: var(--hint); box-shadow: 0 0 0 1px var(--hint) inset; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dice { display: flex; gap: 6px; min-height: 30px; }
+.pips { font: 12.5px var(--font-mono); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.chip { width: 30px; height: 30px; }
+.chip.used { opacity: 0.25; }
+.board-wrap { position: relative; flex: 1 1 auto; display: flex; align-items: center; min-height: 0; }
+#board { width: 100%; height: auto; max-height: 62vh; display: block; touch-action: manipulation; user-select: none; }
+#board .zone { fill: transparent; cursor: pointer; }
+#board.idle { opacity: 0.72; }
+.controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.btn { font: 600 16px var(--font-body); color: var(--ink); background: rgba(240, 230, 210, 0.06); border: 1px solid var(--line); border-radius: 12px; padding: 14px 10px; min-height: 52px; cursor: pointer; }
+.btn:active:not(:disabled) { transform: translateY(1px); background: rgba(240, 230, 210, 0.12); }
+.btn:disabled { opacity: 0.35; }
+.btn.primary { grid-column: 1 / -1; background: var(--brass); color: #1b140c; border-color: transparent; font-size: 19px; min-height: 60px; }
+.btn.hint { color: var(--hint); border-color: rgba(95, 212, 196, 0.5); }
+.btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 78vh; overflow: auto; background: #18120e; border-top: 1px solid var(--edge); border-radius: 18px 18px 0 0; padding: 16px 18px calc(env(safe-area-inset-bottom, 0px) + 18px); display: grid; gap: 12px; box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.6); animation: up 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; z-index: 5; }
+@keyframes up { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet-head { display: flex; align-items: center; gap: 10px; }
+.sheet h2 { margin: 0; flex: 1; font: 21px/1.15 var(--font-display); color: var(--brass); letter-spacing: 0.04em; }
+.badge { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid currentColor; border-radius: 5px; padding: 3px 8px; }
+.x { background: none; border: 0; color: var(--ink-dim); font-size: 28px; line-height: 1; padding: 2px 8px; }
+.nota { font: 500 22px var(--font-mono); color: var(--hint); margin: 0; }
+.nota.mine { color: var(--ink); font-size: 17px; }
+.reasons { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.reasons b { display: block; }
+.reasons span { color: var(--ink-dim); font-size: 14px; }
+.sheet-actions { display: grid; gap: 8px; }
+.join { display: grid; gap: 14px; background: var(--panel); border: 1px solid var(--edge); border-radius: 14px; padding: 18px; }
+.join h1 { margin: 0; font: 24px var(--font-display); color: var(--brass); letter-spacing: 0.05em; }
+.join p { margin: 0; color: var(--ink-dim); }
+.join input { font: 500 26px var(--font-mono); letter-spacing: 0.25em; text-transform: uppercase; text-align: center; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: #0d0a08; color: var(--ink); width: 100%; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg .btn[aria-pressed="true"] { border-color: var(--brass); background: rgba(201, 163, 92, 0.18); }
+.notice { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(238, 129, 112, 0.12); border: 1px solid rgba(238, 129, 112, 0.4); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="who"><span id="mySwatch" class="swatch w"></span><span id="myName">Walnut Backgammon</span></div>
+    <span id="conn" class="conn">Connecting…</span>
+  </header>
+
+  <form id="join" class="join" hidden>
+    <h1>Join the table</h1>
+    <p>Type the six-letter code shown on the TV, then pick your colour.</p>
+    <input id="code" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="6" placeholder="ABC123" aria-label="Table code">
+    <div class="seg" role="group" aria-label="Colour">
+      <button type="button" class="btn" id="pickW" aria-pressed="true">White</button>
+      <button type="button" class="btn" id="pickB" aria-pressed="false">Black</button>
+    </div>
+    <button type="submit" class="btn primary">Join</button>
+  </form>
+
+  <div id="play" hidden>
+    <div style="display:grid;gap:10px">
+      <div id="statusBox" class="status-box">
+        <p id="status" class="status">Waiting for the TV…</p>
+        <p id="statusSub" class="status-sub"></p>
+      </div>
+      <div class="row"><div id="dice" class="dice" aria-label="Dice"></div><span id="pips" class="pips"></span></div>
+      <p id="notice" class="notice" hidden></p>
+      <div class="board-wrap"><svg id="board" viewBox="0 0 330 244" role="img" aria-label="Your board"></svg></div>
+      <div class="controls">
+        <button id="primary" type="button" class="btn primary" disabled>Roll</button>
+        <button id="undo" type="button" class="btn" disabled>Undo</button>
+        <button id="hint" type="button" class="btn hint" disabled>Hint</button>
+        <button id="cancel" type="button" class="btn" disabled>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="sheet" class="sheet" hidden role="dialog" aria-labelledby="sheetTitle">
+    <div class="sheet-head"><h2 id="sheetTitle"></h2><span id="sheetBadge" class="badge" hidden></span><button id="sheetX" type="button" class="x" aria-label="Close">&times;</button></div>
+    <div id="sheetMove"></div>
+    <ul id="sheetReasons" class="reasons"></ul>
+    <div id="sheetActions" class="sheet-actions"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const GRADE = { 'Best move': '#8fd18a', Good: '#c9d97a', Doubtful: '#e8b45a', Mistake: '#ee8170' };
+  const PIPS = {
+    1: [[0.5, 0.5]], 2: [[0.28, 0.28], [0.72, 0.72]], 3: [[0.28, 0.28], [0.5, 0.5], [0.72, 0.72]],
+    4: [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]],
+    5: [[0.28, 0.28], [0.72, 0.28], [0.5, 0.5], [0.28, 0.72], [0.72, 0.72]],
+    6: [[0.28, 0.26], [0.72, 0.26], [0.28, 0.5], [0.72, 0.5], [0.28, 0.74], [0.72, 0.74]],
+  };
+  let room = null, seat = 'w', peer = null, conn = null, retryTimer = 0, last = null, retries = 0;
+
+  /* ---------- joining ---------- */
+  function parseHash() {
+    const m = location.hash.slice(1).match(/^(walnut-bg-[a-z0-9]{4,12})-(w|b)$/i);
+    return m ? { room: m[1].toLowerCase(), seat: m[2].toLowerCase() } : null;
+  }
+  let pickSeat = 'w';
+  $('pickW').onclick = () => { pickSeat = 'w'; $('pickW').setAttribute('aria-pressed', 'true'); $('pickB').setAttribute('aria-pressed', 'false'); };
+  $('pickB').onclick = () => { pickSeat = 'b'; $('pickB').setAttribute('aria-pressed', 'true'); $('pickW').setAttribute('aria-pressed', 'false'); };
+  $('join').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const code = $('code').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (code.length < 4) { $('code').focus(); return; }
+    location.hash = `walnut-bg-${code}-${pickSeat}`;
+    start();
+  });
+  window.addEventListener('hashchange', () => { if (parseHash()) start(); });
+
+  function setConn(text, cls) { $('conn').textContent = text; $('conn').className = 'conn' + (cls ? ' ' + cls : ''); }
+  function start() {
+    const h = parseHash();
+    if (!h) { $('join').hidden = false; $('play').hidden = true; setConn('Not connected'); return; }
+    room = h.room; seat = h.seat;
+    $('join').hidden = true; $('play').hidden = false;
+    $('mySwatch').className = `swatch ${seat}`;
+    $('myName').textContent = seat === 'w' ? 'White' : 'Black';
+    document.title = `${seat === 'w' ? 'White' : 'Black'} · Walnut Backgammon`;
+    connect();
+  }
+  function connect() {
+    clearTimeout(retryTimer);
+    try { if (peer) peer.destroy(); } catch (err) { /* already gone */ }
+    if (!window.Peer) { setConn('Could not load the connection library', 'bad'); return; }
+    setConn(retries ? 'Reconnecting…' : 'Connecting…');
+    peer = new window.Peer(undefined, { debug: 0 });
+    peer.on('open', () => {
+      conn = peer.connect(room, { reliable: true, serialization: 'json' });
+      conn.on('open', () => { retries = 0; setConn('Connected', 'ok'); conn.send({ type: 'hello', seat }); });
+      conn.on('data', onMessage);
+      conn.on('close', () => { setConn('Lost the TV. Reconnecting…', 'bad'); retry(); });
+      conn.on('error', () => retry());
+    });
+    peer.on('error', (err) => {
+      if (err.type === 'peer-unavailable') setConn('Can’t find the TV. Is the game open?', 'bad');
+      else setConn('Connection problem. Retrying…', 'bad');
+      retry();
+    });
+    peer.on('disconnected', () => { try { peer.reconnect(); } catch (err) { retry(); } });
+  }
+  function retry() {
+    clearTimeout(retryTimer);
+    retries++;
+    retryTimer = setTimeout(connect, Math.min(8000, 1500 * retries));
+  }
+  const send = (msg) => { if (conn && conn.open) conn.send(msg); };
+  const buzz = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (err) { /* not supported */ } };
+  let wakeLock = null;
+  async function keepAwake() {
+    try { if (!wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (err) { /* refused */ }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { keepAwake(); if (!conn || !conn.open) connect(); } });
+  document.addEventListener('pointerdown', keepAwake, { once: true });
+
+  /* ---------- buttons ---------- */
+  $('primary').onclick = () => { buzz(12); send({ type: 'primary' }); };
+  $('undo').onclick = () => { buzz(8); send({ type: 'undo' }); };
+  $('hint').onclick = () => { buzz(8); send({ type: 'hint' }); };
+  $('cancel').onclick = () => { buzz(8); send({ type: 'cancel' }); };
+  $('sheetX').onclick = () => send({ type: 'closeCard' });
+
+  /* ---------- incoming state ---------- */
+  function onMessage(msg) {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'replaced') { setConn('Another phone took this seat', 'bad'); clearTimeout(retryTimer); try { peer.destroy(); } catch (err) { /* gone */ } return; }
+    if (msg.type !== 'state') return;
+    const prev = last;
+    last = msg;
+    render(msg, prev);
+  }
+  function isMine(s) { return s.turn === seat && s.human; }
+  function render(s, prev) {
+    const mine = isMine(s), free = s.phase === 'opening' || s.phase === 'over';
+    const other = seat === 'w' ? 'Black' : 'White';
+    const youName = seat === 'w' ? 'White' : 'Black';
+    // Status
+    let title = s.status, sub = '';
+    if (!mine && !free) { title = s.seats[s.turn] || !s.human ? `${s.turn === 'w' ? 'White' : 'Black'} is playing` : `Waiting for ${other}`; sub = s.status; }
+    else if (mine && s.phase === 'move') sub = 'Tap a glowing checker, then a gold point.';
+    $('status').textContent = title;
+    $('statusSub').textContent = sub;
+    $('statusBox').classList.toggle('mine', mine && !free);
+    // Turn change and hits buzz the phone
+    if (prev) {
+      if (mine && !isMine(prev)) buzz([60, 60, 60]);
+      const k = seat;
+      if (s.bar[k] > prev.bar[k]) buzz(220);
+    }
+    // Dice
+    const left = (s.rem || []).slice();
+    $('dice').innerHTML = (s.dice || []).map((v) => {
+      const i = left.indexOf(v); if (i >= 0) left.splice(i, 1);
+      const dots = PIPS[v].map(([x, y]) => `<circle cx="${x * 30}" cy="${y * 30}" r="${v === 1 ? 3.4 : 2.7}" fill="${s.turn === 'w' ? '#1b1714' : '#f1e4c4'}"/>`).join('');
+      return `<svg class="chip${i < 0 ? ' used' : ''}" viewBox="0 0 30 30"><rect x="1" y="1" width="28" height="28" rx="6" fill="${s.turn === 'w' ? '#f4efe4' : '#8d2420'}"/>${dots}</svg>`;
+    }).join('');
+    $('pips').textContent = `Pips ${s.pip[seat]} · ${s.pip[seat === 'w' ? 'b' : 'w']}   Score ${s.score[seat]}–${s.score[seat === 'w' ? 'b' : 'w']}`;
+    // Buttons
+    $('primary').textContent = s.primary.label;
+    $('primary').disabled = !(s.primary.enabled && (mine || free));
+    $('undo').disabled = !(mine && s.canUndo);
+    $('hint').disabled = !(mine && s.phase === 'move');
+    $('cancel').disabled = !(mine && (s.selected !== null || s.card));
+    $('notice').hidden = !(s.mode === 'ai' && seat === 'b');
+    $('notice').textContent = 'The TV is playing against the computer, so Black is the computer. Switch the TV to Two players to play Black.';
+    drawBoard(s, mine && s.phase === 'move');
+    // Coach card
+    const showCard = s.card && (mine || free);
+    $('sheet').hidden = !showCard;
+    if (showCard) renderSheet(s.card);
+  }
+  let sheetKey = '';
+  function renderSheet(c) {
+    const key = JSON.stringify(c);
+    if (key === sheetKey) return;
+    sheetKey = key;
+    $('sheetTitle').textContent = c.title;
+    $('sheetBadge').hidden = !c.badge;
+    $('sheetBadge').textContent = c.badge || '';
+    $('sheetBadge').style.color = GRADE[c.badge] || '';
+    $('sheetMove').innerHTML = '';
+    c.move.forEach((m, i) => {
+      const p = document.createElement('p');
+      p.className = 'nota' + (c.move.length > 1 && i === 0 ? ' mine' : '');
+      p.textContent = m;
+      $('sheetMove').appendChild(p);
+    });
+    $('sheetReasons').innerHTML = '';
+    for (const r of c.reasons) {
+      const li = document.createElement('li');
+      const b = document.createElement('b'); b.textContent = r.t || '';
+      const sp = document.createElement('span'); sp.textContent = r.x || '';
+      li.append(b, sp);
+      $('sheetReasons').appendChild(li);
+    }
+    $('sheetActions').innerHTML = '';
+    c.actions.forEach((label, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn' + (i === 0 ? ' primary' : ''); b.textContent = label;
+      b.onclick = () => { buzz(10); send({ type: 'card', i }); };
+      $('sheetActions').appendChild(b);
+    });
+  }
+
+  /* ---------- the board, drawn from your side ---------- */
+  const W_ = 330, H_ = 244, R = 10, COL = 22, TOP = 10, BOT = 234, LEN = 98;
+  const colX = (c) => (c < 6 ? 12 + 11 + c * COL : 166 + 11 + (c - 6) * COL);
+  const pointCol = (p) => (p <= 12 ? 12 - p : p - 13);
+  // Black sees the board flipped top-to-bottom, so their home board is bottom right too.
+  const isBottom = (p) => (seat === 'b' ? p > 12 : p <= 12);
+  function drawBoard(s, active) {
+    const svg = $('board');
+    svg.classList.toggle('idle', !isMine(s) && !(s.phase === 'opening' || s.phase === 'over'));
+    const sources = new Set(s.sources.map(String)), dests = new Set(s.dests.map(String));
+    const sel = s.selected === null ? null : String(s.selected);
+    let out = '';
+    out += `<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+    out += `<rect x="0" y="0" width="${W_}" height="${H_}" rx="10" fill="#5b3a23"/>`;
+    out += `<rect x="12" y="8" width="132" height="228" fill="#1f3d36"/><rect x="166" y="8" width="132" height="228" fill="#1f3d36"/>`;
+    out += `<rect x="144" y="8" width="22" height="228" fill="#4a2f1c"/><rect x="302" y="8" width="22" height="228" fill="#1f3d36"/>`;
+    // Points
+    for (let p = 1; p <= 24; p++) {
+      const c = pointCol(p), x = colX(c), bottom = isBottom(p);
+      const light = p <= 12 ? c % 2 === 0 : c % 2 === 1;
+      const base = bottom ? BOT : TOP, tip = bottom ? BOT - LEN : TOP + LEN;
+      const lit = dests.has(String(p));
+      out += `<polygon points="${x - 10.5},${base} ${x + 10.5},${base} ${x},${tip}" fill="${lit ? '#e8c06a' : light ? '#e6d6b8' : '#8c2f2b'}" opacity="${lit ? 0.95 : 1}"/>`;
+      const label = seat === 'w' ? p : 25 - p;
+      out += `<text x="${x}" y="${bottom ? 242 : 6.5}" font-size="6" text-anchor="middle" fill="#c9a35c" font-family="Figtree,sans-serif">${label}</text>`;
+    }
+    // Checkers on points
+    const chk = (x, y, col, ring, n) => {
+      let g = `<circle cx="${x}" cy="${y}" r="${R - 0.6}" fill="${col > 0 ? '#ece2cc' : '#221d1a'}" stroke="${col > 0 ? '#b9ad94' : '#55493f'}" stroke-width="1"/>`;
+      g += `<circle cx="${x}" cy="${y}" r="${R - 4}" fill="none" stroke="${col > 0 ? '#cfc3aa' : '#3a322c'}" stroke-width="0.8"/>`;
+      if (ring) g += `<circle cx="${x}" cy="${y}" r="${R + 1.6}" fill="none" stroke="${ring}" stroke-width="2.6" filter="url(#glow)"/>`;
+      if (n) g += `<text x="${x}" y="${y + 3.2}" font-size="9" font-weight="600" text-anchor="middle" fill="${col > 0 ? '#1b1714' : '#f0e6d2'}" font-family="Figtree,sans-serif">${n}</text>`;
+      return g;
+    };
+    for (let p = 1; p <= 24; p++) {
+      const v = s.pts[p];
+      if (!v) continue;
+      const n = Math.abs(v), col = Math.sign(v), x = colX(pointCol(p)), bottom = isBottom(p);
+      const step = n > 5 ? (LEN - 2 * R) / (n - 1) : 2 * R;
+      for (let i = 0; i < n; i++) {
+        const y = bottom ? BOT - R - i * step : TOP + R + i * step;
+        const top = i === n - 1;
+        const ring = top && sel === String(p) ? '#ffd27a' : top && active && sources.has(String(p)) ? '#5fd4c4' : null;
+        out += chk(x, y, col, ring, top && n > 5 ? n : 0);
+      }
+    }
+    // Bar and borne-off trays: your own checkers always sit on your (bottom) side.
+    for (const k of ['w', 'b']) {
+      const col = k === 'w' ? 1 : -1, ours = k === seat, n = s.bar[k], shown = Math.min(n, 4);
+      for (let i = 0; i < shown; i++) {
+        const y = ours ? 122 + 16 + i * 2 * R : 122 - 16 - i * 2 * R, topOne = i === shown - 1;
+        const ring = topOne && ours ? (sel === 'bar' ? '#ffd27a' : active && sources.has('bar') ? '#5fd4c4' : null) : null;
+        out += chk(155, y, col, ring, topOne && n > 4 ? n : 0);
+      }
+      for (let i = 0; i < s.off[k]; i++) {
+        const y = ours ? BOT - 5 - i * 6.4 : TOP + i * 6.4;
+        out += `<rect x="304" y="${y}" width="18" height="5" rx="1.5" fill="${col > 0 ? '#ece2cc' : '#221d1a'}" stroke="${col > 0 ? '#b9ad94' : '#55493f'}" stroke-width="0.6"/>`;
+      }
+    }
+    if (dests.has('off')) out += `<rect x="302" y="124" width="22" height="112" fill="#e8c06a" opacity="0.45" rx="3"/>`;
+    // Tap zones
+    if (active) {
+      for (let p = 1; p <= 24; p++) {
+        const x = colX(pointCol(p)), bottom = isBottom(p);
+        out += `<rect class="zone" data-loc="${p}" x="${x - 11}" y="${bottom ? 122 : 0}" width="22" height="122"/>`;
+      }
+      out += `<rect class="zone" data-loc="bar" x="144" y="0" width="22" height="${H_}"/>`;
+      out += `<rect class="zone" data-loc="off" x="300" y="0" width="30" height="${H_}"/>`;
+    }
+    svg.innerHTML = out;
+  }
+  $('board').addEventListener('click', (e) => {
+    const z = e.target.closest('.zone');
+    if (!z) return;
+    const loc = z.dataset.loc;
+    buzz(8);
+    send({ type: 'pick', loc: loc === 'bar' || loc === 'off' ? loc : Number(loc) });
+  });
+
+  start();
+})();
+</script>
+</body>
+</html>

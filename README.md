@@ -77,6 +77,20 @@ network connection.
   - To get it on a TV: cast the browser tab from Chrome (⋮ → Cast → Cast tab),
     connect a laptop by HDMI, or open the page in the TV's own web browser.
 
+- **Phones as controllers.** Press **Phones** (or <kbd>P</kbd>) and a QR code
+  appears for each colour. Each player scans theirs and their phone becomes their
+  controller. It shows their own board (Black's is flipped so their home board is
+  bottom right too), their dice and the status. You tap a checker and then a lit
+  point to move, and there are big Roll / End turn, Undo, Hint and Cancel buttons.
+  Coach cards appear on the phone of the player whose turn it is. Phones only
+  work on their own turn and buzz when it starts. A Black phone joining switches
+  the game to two players. Without a camera, open `controller.html` and type the
+  six-letter code shown on the TV.
+  - The phone and the game connect directly over WebRTC. The free
+    [PeerJS](https://peerjs.com) service introduces them, and if your network
+    blocks a direct link it also relays the game data. This only works from the
+    GitHub Pages copy, not from inside an embedded frame.
+
 ## Controls
 
 | Action | Input |

@@ -199,6 +199,26 @@ html.tv .toast { font-size: 24px; padding: 16px 26px; }
 html.tv button:focus-visible { outline-width: 4px; outline-offset: 4px; }
 html.tv.idle, html.tv.idle * { cursor: none !important; }
 @media (max-width: 1100px) { html.tv .status { font-size: 22px; } html.tv .btn { font-size: 17px; padding: 11px 18px; } }
+/* Phones panel: QR codes for each player's controller. */
+.phones { position: fixed; z-index: 8; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(44rem, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow: auto; display: grid; gap: 14px; padding: 20px 22px; background: rgba(18, 13, 10, 0.95); border: 1px solid var(--panel-edge); border-radius: 14px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65); animation: lesson-in-c 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes lesson-in-c { from { opacity: 0; transform: translate(-50%, calc(-50% + 14px)); } to { opacity: 1; transform: translate(-50%, -50%); } }
+.phones h2 { margin: 0; flex: 1; font: 24px/1.15 var(--font-display); color: var(--brass); letter-spacing: 0.04em; }
+.phones p { margin: 0; color: var(--ink-dim); }
+.seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 16px; }
+.seat { margin: 0; display: grid; gap: 10px; justify-items: center; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.seat.on { border-color: var(--hint); box-shadow: 0 0 0 1px var(--hint) inset; }
+.qr { width: min(15rem, 100%); aspect-ratio: 1; background: #fff; border-radius: 10px; padding: 8px; display: grid; place-items: center; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.qr .wait { color: #555; font-size: 13px; }
+.seat figcaption { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 18px; }
+.seat em { font-style: normal; font-weight: 500; font-size: 14px; color: var(--ink-dim); }
+.seat.on em { color: var(--hint); }
+.phones-foot { font-size: 13.5px; }
+.phones-foot code { font: 500 17px var(--font-mono); color: var(--ink); letter-spacing: 0.15em; }
+.ph-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--hint); margin-left: 6px; }
+html.tv .phones h2 { font-size: 32px; }
+html.tv .phones p { font-size: 18px; }
+@media (prefers-reduced-motion: reduce) { .phones { animation: none; } }
 .fatal { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gutter); text-align: center; color: var(--ink-dim); }
 
 @media (max-width: 640px), (max-height: 560px) {
@@ -253,6 +273,7 @@ html.tv.idle, html.tv.idle * { cursor: none !important; }
       <button id="soundBtn" type="button" class="btn small" aria-pressed="true">Sound on</button>
       <button id="learnBtn" type="button" class="btn small toggle" aria-pressed="false">Learning mode</button>
       <button id="tvBtn" type="button" class="btn small toggle" aria-pressed="false">TV mode</button>
+      <button id="phonesBtn" type="button" class="btn small">Phones</button>
       <button id="qualityBtn" type="button" class="btn small" title="Smooth turns off glow and dust for slower devices">Graphics: High</button>
       <button id="fullBtn" type="button" class="btn small" hidden>Full screen</button>
       <button id="newBtn" type="button" class="btn small">New game</button>
@@ -282,6 +303,16 @@ html.tv.idle, html.tv.idle * { cursor: none !important; }
   <div id="cardActions" class="card-actions"></div>
 </section>
 <aside id="lesson" class="lesson" hidden role="status" aria-live="polite"><b id="lessonTitle"></b><button id="lessonClose" type="button" class="card-x" aria-label="Dismiss">&times;</button><p id="lessonText"></p></aside>
+
+<section id="phonesPanel" class="phones" hidden role="dialog" aria-labelledby="phonesTitle">
+  <div class="card-head"><h2 id="phonesTitle">Play from your phones</h2><button id="phonesClose" type="button" class="card-x" aria-label="Close">&times;</button></div>
+  <p>Each player scans their code with their phone camera. Your phone shows your own board, dice and buttons, and only works on your turn.</p>
+  <div class="seats">
+    <figure id="seatW" class="seat"><div class="qr"><span class="wait">Preparing…</span></div><figcaption><span class="swatch w"></span>White <em>Waiting</em></figcaption></figure>
+    <figure id="seatB" class="seat"><div class="qr"><span class="wait">Preparing…</span></div><figcaption><span class="swatch b"></span>Black <em>Waiting</em></figcaption></figure>
+  </div>
+  <p id="phonesFoot" class="phones-foot"></p>
+</section>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -2102,8 +2133,8 @@ function refreshHud() {
   $('pipW').textContent = pipCount(state, W); $('pipB').textContent = pipCount(state, B);
   $('offW').textContent = state.off.w; $('offB').textContent = state.off.b;
   $('scoreW').textContent = score.w; $('scoreB').textContent = score.b;
-  $('nameW').textContent = mode === 'ai' ? 'You' : 'White';
-  $('nameB').textContent = mode === 'ai' ? 'Computer' : 'Black';
+  $('nameW').innerHTML = (mode === 'ai' ? 'You' : 'White') + (phones.seats.w ? '<span class="ph-tag">phone</span>' : '');
+  $('nameB').innerHTML = (mode === 'ai' ? 'Computer' : 'Black') + (phones.seats.b ? '<span class="ph-tag">phone</span>' : '');
   $('rowW').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === W);
   $('rowB').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === B);
   const left = rem.slice();
@@ -2467,7 +2498,7 @@ const KEY_NAMES = {
   Escape: 'back', Esc: 'back', Backspace: 'back', GoBack: 'back', BrowserBack: 'back', Back: 'back', Exit: 'back',
   ' ': 'primary', MediaPlayPause: 'primary', MediaPlay: 'primary', Play: 'primary', ColorF2Yellow: 'primary',
   ColorF0Red: 'hint', ColorF1Green: 'undo', ColorF3Blue: 'tv',
-  h: 'hint', H: 'hint', u: 'undo', U: 'undo', t: 'tv', T: 'tv',
+  h: 'hint', H: 'hint', u: 'undo', U: 'undo', t: 'tv', T: 'tv', p: 'phones', P: 'phones',
 };
 const KEY_CODES = {
   37: 'left', 38: 'up', 39: 'right', 40: 'down', 21: 'left', 19: 'up', 22: 'right', 20: 'down', // desktop, Android TV D-pad
@@ -2581,6 +2612,8 @@ function navAction(act, input = 'keys') {
   Snd.init();
   navInput = input;
   if (act === 'tv') { setTv(!tvMode); return; }
+  if (act === 'phones') { togglePhones(); return; }
+  if (!$('phonesPanel').hidden && (act === 'back' || act === 'ok')) { togglePhones(false); return; }
   if (!$('lesson').hidden && (act === 'ok' || act === 'back')) { $('lesson').hidden = true; return; }
   // A coach card is open: move between its buttons.
   if (!$('card').hidden) {
@@ -2755,6 +2788,178 @@ function trackFps(dt) {
 }
 
 /* ------------------------------------------------------------------ *
+ *  Phones as controllers. Each player scans a QR code; the phone      *
+ *  connects to this page over WebRTC (PeerJS's free server only       *
+ *  introduces the two), gets the game state and sends back taps.      *
+ * ------------------------------------------------------------------ */
+const PEER_SRC = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+const QR_SRC = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+const phones = { peer: null, room: null, ready: false, starting: false, error: null, seats: { w: null, b: null }, lastSent: '', lastPush: 0, idTries: 0 };
+const PUBLIC_URL = 'https://robogb2021.github.io/walnut-backgammon/';
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if ([...document.scripts].some((sc) => sc.src === src && sc.dataset.loaded)) { resolve(); return; }
+    const el = document.createElement('script');
+    el.src = src; el.async = true;
+    el.onload = () => { el.dataset.loaded = '1'; resolve(); };
+    el.onerror = () => reject(new Error(`Could not load ${src}`));
+    document.head.appendChild(el);
+  });
+}
+// One table code per browser, so phones can reconnect after the TV page reloads.
+function tableId(fresh = false) {
+  let id = null;
+  try { id = fresh ? null : localStorage.getItem('walnut-bg-room'); } catch (err) { /* storage unavailable */ }
+  if (!id) {
+    const abc = 'abcdefghjkmnpqrstuvwxyz23456789';
+    id = 'walnut-bg-' + Array.from({ length: 6 }, () => abc[Math.floor(Math.random() * abc.length)]).join('');
+    try { localStorage.setItem('walnut-bg-room', id); } catch (err) { /* storage unavailable */ }
+  }
+  return id;
+}
+async function startPhones() {
+  if (phones.peer || phones.starting) return;
+  phones.starting = true; phones.error = null;
+  renderPhones();
+  try { await Promise.all([loadScript(PEER_SRC), loadScript(QR_SRC)]); }
+  catch (err) { phones.starting = false; phones.error = 'blocked'; renderPhones(); return; }
+  const open = (id) => {
+    const peer = new window.Peer(id, { debug: 0 });
+    phones.peer = peer;
+    peer.on('open', (pid) => { phones.room = pid; phones.ready = true; phones.starting = false; phones.error = null; renderPhones(); });
+    peer.on('connection', attachPhone);
+    peer.on('disconnected', () => setTimeout(() => { if (!peer.destroyed) try { peer.reconnect(); } catch (err) { /* will retry */ } }, 1500));
+    peer.on('error', (err) => {
+      if (err.type === 'unavailable-id') {
+        // Our code is still held from before a reload; wait for it to free up, then pick a new one.
+        peer.destroy();
+        phones.idTries++;
+        setTimeout(() => open(phones.idTries > 4 ? tableId(true) : id), 3000);
+      } else if (!phones.ready) { phones.error = 'network'; phones.starting = false; renderPhones(); }
+    });
+  };
+  open(tableId());
+  setTimeout(() => { if (!phones.ready && !phones.error && phones.idTries === 0) { phones.error = 'network'; phones.starting = false; renderPhones(); } }, 15000);
+}
+function attachPhone(conn) {
+  conn.on('data', (msg) => {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'hello') {
+      const seat = msg.seat === 'b' ? 'b' : 'w', old = phones.seats[seat];
+      if (old && old !== conn) { try { old.send({ type: 'replaced' }); old.close(); } catch (err) { /* already closed */ } }
+      phones.seats[seat] = conn; conn.seat = seat;
+      toast(`${seat === 'w' ? 'White' : 'Black'}'s phone is connected`);
+      if (seat === 'b' && mode === 'ai') setMode('pvp');
+      phones.lastSent = '';
+      renderPhones(); refreshHud();
+      if ((phones.seats.w || mode === 'ai') && (phones.seats.b || mode === 'ai') && !$('phonesPanel').hidden) setTimeout(() => togglePhones(false), 1400);
+      return;
+    }
+    if (conn.seat && phones.seats[conn.seat] === conn) phoneAction(conn.seat === 'w' ? W : B, msg);
+  });
+  conn.on('close', () => {
+    if (conn.seat && phones.seats[conn.seat] === conn) {
+      phones.seats[conn.seat] = null;
+      toast(`${conn.seat === 'w' ? 'White' : 'Black'}'s phone disconnected`);
+      renderPhones(); refreshHud();
+    }
+  });
+}
+// A phone may only act for its own colour, on its own turn (anyone may start or restart a game).
+function phoneAction(pl, msg) {
+  skipIntro();
+  const mine = turn === pl && isHuman(pl), free = phase === 'opening' || phase === 'over';
+  const card = !$('card').hidden;
+  switch (msg.type) {
+    case 'pick': {
+      const loc = msg.loc === 'bar' || msg.loc === 'off' ? msg.loc : Number(msg.loc);
+      if (mine && phase === 'move' && (typeof loc === 'string' || (loc >= 1 && loc <= 24))) handleClick(loc);
+      break;
+    }
+    case 'primary': if (mine || free) primaryAction(); break;
+    case 'undo': if (mine) undo(); break;
+    case 'hint':
+      if (mine && phase === 'move') {
+        if (!learning) { learning = true; try { localStorage.setItem('walnut-bg-learning', '1'); } catch (err) { /* storage unavailable */ } refresh(); }
+        showHint();
+      }
+      break;
+    case 'cancel':
+      if (!mine) break;
+      if (card) closeCard(); else if (selected !== null) { selected = null; dests = new Map(); refresh(); }
+      break;
+    case 'card': if (card && (mine || free)) [...$('cardActions').querySelectorAll('button')][msg.i | 0]?.click(); break;
+    case 'closeCard': if (card && (mine || free)) closeCard(); break;
+    default: break;
+  }
+  phones.lastSent = '';
+}
+// Everything a phone needs to draw its own copy of the table.
+function phoneSnapshot() {
+  const card = $('card');
+  return {
+    type: 'state', turn: turn === W ? 'w' : 'b', human: isHuman(turn), phase, mode, learning,
+    pts: state.pts, bar: state.bar, off: state.off, dice: turnDice, rem,
+    sources: [...sources], selected, dests: [...dests.keys()],
+    status: $('status').textContent,
+    primary: { label: $('primaryBtn').textContent, enabled: !$('primaryBtn').disabled },
+    canUndo: !$('undoBtn').disabled,
+    pip: { w: pipCount(state, W), b: pipCount(state, B) }, score: { ...score },
+    seats: { w: !!phones.seats.w, b: !!phones.seats.b },
+    card: card.hidden ? null : {
+      title: $('cardTitle').textContent,
+      badge: $('cardBadge').hidden ? '' : $('cardBadge').textContent,
+      move: [...$('cardMove').querySelectorAll('.nota')].map((n) => n.textContent),
+      reasons: [...$('cardReasons').children].map((li) => ({ t: li.querySelector('b')?.textContent || '', x: li.querySelector('span')?.textContent || '' })),
+      actions: [...$('cardActions').querySelectorAll('button')].map((b) => b.textContent),
+    },
+  };
+}
+function pushPhones(now) {
+  if (!phones.ready || (!phones.seats.w && !phones.seats.b) || now - phones.lastPush < 120) return;
+  phones.lastPush = now;
+  const snap = phoneSnapshot(), json = JSON.stringify(snap);
+  if (json === phones.lastSent) return;
+  phones.lastSent = json;
+  for (const c of [phones.seats.w, phones.seats.b]) if (c && c.open) { try { c.send(snap); } catch (err) { /* dropped; next push retries */ } }
+}
+function controllerUrl(seat) {
+  const base = /^https?:/.test(location.protocol) && !/claude|anthropic/.test(location.hostname) ? new URL('controller.html', location.href).href : PUBLIC_URL + 'controller.html';
+  return `${base}#${phones.room}-${seat}`;
+}
+function renderPhones() {
+  if ($('phonesPanel').hidden) return;
+  for (const seat of ['w', 'b']) {
+    const fig = $(seat === 'w' ? 'seatW' : 'seatB'), on = !!phones.seats[seat];
+    fig.classList.toggle('on', on);
+    fig.querySelector('em').textContent = on ? 'Connected' : seat === 'b' && mode === 'ai' ? 'Scan to play Black (switches to two players)' : 'Waiting';
+    const box = fig.querySelector('.qr');
+    if (phones.ready && window.qrcode) {
+      const url = controllerUrl(seat);
+      if (box.dataset.url !== url) {
+        const qr = window.qrcode(0, 'M'); qr.addData(url); qr.make();
+        box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+        box.dataset.url = url;
+      }
+    } else box.innerHTML = `<span class="wait">${phones.error ? 'Unavailable' : 'Preparing…'}</span>`;
+  }
+  const foot = $('phonesFoot');
+  if (phones.error) {
+    foot.textContent = phones.error === 'blocked' || /claude|anthropic/.test(location.hostname)
+      ? `Phones can't connect from this copy of the game. Open ${PUBLIC_URL} on the TV and try again.`
+      : 'Couldn’t reach the connection service. Check the internet connection, then close and reopen this panel.';
+  } else if (phones.ready) {
+    foot.innerHTML = `No camera? Open <b>${esc(PUBLIC_URL.replace(/^https:\/\//, ''))}controller.html</b> and enter <code>${esc(phones.room.replace('walnut-bg-', '').toUpperCase())}</code>.`;
+  } else foot.textContent = 'Setting up the table…';
+}
+function togglePhones(show = $('phonesPanel').hidden) {
+  $('phonesPanel').hidden = !show;
+  if (show) { startPhones(); renderPhones(); }
+}
+$('phonesBtn').addEventListener('click', () => togglePhones());
+$('phonesClose').addEventListener('click', () => togglePhones(false));
+
+/* ------------------------------------------------------------------ *
  *  Main loop                                                          *
  * ------------------------------------------------------------------ */
 let last = performance.now();
@@ -2794,6 +2999,7 @@ function frame(now) {
   if (intro) updateIntro(dt); else controls.update();
   updateNav(now, dt);
   updateViewShift(dt);
+  pushPhones(now);
   trackFps(dt);
   if (composer && quality === 'high') composer.render(); else renderer.render(scene, camera);
   requestAnimationFrame(frame);
