@@ -159,6 +159,7 @@ button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
   .card, .reasons li, .alt .meter i, .grade.big, .lesson, .thinking i { animation: none; }
 }
 /* TV mode: couch-distance type, overscan-safe margins, no mouse needed. */
+@media (min-width: 900px) {
 html.tv { --gutter: max(24px, 3.2vw); }
 html.tv body { font-size: 18px; }
 html.tv .top { top: calc(env(safe-area-inset-top, 0px) + max(20px, 3.5vh)); }
@@ -193,6 +194,8 @@ html.tv .lesson { width: min(36rem, calc(100% - 2 * var(--gutter))); top: calc(e
 html.tv .lesson b { font-size: 22px; }
 html.tv .lesson p { font-size: 18px; }
 html.tv .toast { font-size: 24px; padding: 16px 26px; }
+}
+@media (min-width: 900px) and (max-width: 1100px) { html.tv .status { font-size: 22px; } html.tv .btn { font-size: 17px; padding: 11px 18px; } }
 html.tv button:focus-visible { outline-width: 4px; outline-offset: 4px; }
 html.tv.idle, html.tv.idle * { cursor: none !important; }
 @media (max-width: 1100px) { html.tv .status { font-size: 22px; } html.tv .btn { font-size: 17px; padding: 11px 18px; } }
@@ -204,9 +207,11 @@ html.tv.idle, html.tv.idle * { cursor: none !important; }
   .status-panel { max-width: none; flex: 1 1 100%; gap: 2px; }
   .status { font-size: 14.5px; }
   .eyebrow, .sub, .scores thead { display: none; }
-  .table-panel { flex: 1 1 100%; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+  .table-panel { flex: 1 1 100%; grid-template-columns: 1fr; gap: 7px; }
   .scores th, .scores td { padding: 1px 6px; }
-  .settings { justify-content: flex-end; }
+  .settings { justify-content: flex-start; gap: 5px; }
+  .settings .btn.small, .seg button { font-size: 12px; padding: 6px 9px; }
+  #fullBtn { display: none; }
   .btn { padding: 9px 13px; }
   .btn.primary { min-width: 0; }
   .chips { padding: 5px 8px; min-height: 28px; }
@@ -1018,6 +1023,7 @@ function fitView() {
   } else dir = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(dir, d);
   controls.maxDistance = Math.min(50, Math.max(40, d * 1.5));
+  view.dirty = true; // re-apply the card offset at the new size
   renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio, 2) : 1);
   renderer.setSize(w, h, false);
   if (composer) { composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); composer.setSize(w, h); }
@@ -2453,23 +2459,51 @@ $('learnBtn').addEventListener('click', () => {
 });
 $('hintBtn').addEventListener('click', () => { Snd.init(); showHint(); });
 $('modePvp').addEventListener('click', () => setMode('pvp'));
-// Keyboards, TV remotes (arrows, OK, Back) and media keys all map onto the same few actions.
-const BACK_KEYS = new Set(['Escape', 'Backspace', 'GoBack', 'BrowserBack']);
-const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+// Keyboards, TV remotes and media keys all map onto the same few actions. TV browsers disagree
+// on what they send, so match the key name first and fall back to the platform's key codes.
+const KEY_NAMES = {
+  ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Left: 'left', Right: 'right', Up: 'up', Down: 'down',
+  Enter: 'ok', Select: 'ok', Accept: 'ok', OK: 'ok',
+  Escape: 'back', Esc: 'back', Backspace: 'back', GoBack: 'back', BrowserBack: 'back', Back: 'back', Exit: 'back',
+  ' ': 'primary', MediaPlayPause: 'primary', MediaPlay: 'primary', Play: 'primary', ColorF2Yellow: 'primary',
+  ColorF0Red: 'hint', ColorF1Green: 'undo', ColorF3Blue: 'tv',
+  h: 'hint', H: 'hint', u: 'undo', U: 'undo', t: 'tv', T: 'tv',
+};
+const KEY_CODES = {
+  37: 'left', 38: 'up', 39: 'right', 40: 'down', 21: 'left', 19: 'up', 22: 'right', 20: 'down', // desktop, Android TV D-pad
+  13: 'ok', 23: 'ok', 66: 'ok', 32: 'primary', 179: 'primary', 415: 'primary', 405: 'primary',
+  8: 'back', 27: 'back', 4: 'back', 461: 'back', 10009: 'back', 403: 'hint', 404: 'undo', 406: 'tv',
+};
+function keyAction(e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) return 'undo';
+  if (e.ctrlKey || e.metaKey || e.altKey) return null;
+  if (e.key && e.key !== 'Unidentified' && KEY_NAMES[e.key]) return KEY_NAMES[e.key];
+  if (!e.key || e.key === 'Unidentified' || e.key === 'Enter' || e.key.length > 1) return KEY_CODES[e.keyCode] || null;
+  return null;
+}
+let keyEchoTimer = 0;
 window.addEventListener('keydown', (e) => {
+  const act = keyAction(e);
   const onButton = e.target.closest && e.target.closest('button, input, select, textarea');
-  if (onButton && (e.key === 'Enter' || e.key === ' ')) return; // let the focused button press itself
-  let act = null;
-  if (ARROWS[e.key]) act = ARROWS[e.key];
-  else if (e.key === 'Enter' || e.key === 'Select' || e.keyCode === 23) act = 'ok';
-  else if (e.code === 'Space' || e.key === 'MediaPlayPause') act = 'primary';
-  else if (BACK_KEYS.has(e.key) || e.keyCode === 461 || e.keyCode === 10009) act = 'back';
-  else if (e.key === 'u' || e.key === 'U' || ((e.ctrlKey || e.metaKey) && e.key === 'z')) act = 'undo';
-  else if (e.key === 'h' || e.key === 'H') act = 'hint';
-  else if (e.key === 't' || e.key === 'T') act = 'tv';
+  if (tvMode && !['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
+    // Remote test: show what arrived, so an unrecognised remote is easy to spot.
+    $('sub').textContent = `Remote: ${e.key && e.key !== 'Unidentified' ? e.key : 'key'} (code ${e.keyCode}) → ${act ? act.replace('ok', 'OK').replace('primary', 'roll / end turn') : 'not used'}`;
+    clearTimeout(keyEchoTimer);
+    keyEchoTimer = setTimeout(updateLegend, 2500);
+  }
+  if (onButton && act === 'ok' || onButton && e.key === ' ') return; // let the focused button press itself
   if (!act) return;
   e.preventDefault();
   navAction(act, 'keys');
+}, true);
+// Some TV remotes' Back button navigates the browser away; in TV mode catch it and treat it as Back.
+function armBackTrap() {
+  try { if (!history.state || !history.state.walnutTv) history.pushState({ walnutTv: true }, ''); } catch (err) { /* history unavailable */ }
+}
+window.addEventListener('popstate', () => {
+  if (!tvMode) return;
+  navAction('back', 'keys');
+  armBackTrap();
 });
 
 /* ------------------------------------------------------------------ *
@@ -2642,6 +2676,31 @@ function updateNav(now, dt) {
   cursorArrow.rotation.y = now * 0.003;
 }
 
+// While a coach card is open, slide and shrink the board into the free part of the screen.
+const view = { x: 0, y: 0, z: 1 };
+function updateViewShift(dt) {
+  const W = canvas.clientWidth || window.innerWidth, Hh = canvas.clientHeight || window.innerHeight;
+  let tx = 0, ty = 0, tz = 1;
+  const card = $('card');
+  if (!card.hidden) {
+    const r = card.getBoundingClientRect();
+    if (r.width > W * 0.8) {
+      const free = Math.max(Hh * 0.35, r.top - 10);
+      tz = clamp((free / Hh) * 1.1, 0.42, 1); ty = (Hh - free) / 2;
+    } else {
+      const free = Math.max(W * 0.35, W - r.right - 10);
+      tz = clamp((free / W) * 1.3, 0.45, 1); tx = -r.right / 2;
+    }
+  }
+  if (Math.abs(tx - view.x) < 0.3 && Math.abs(ty - view.y) < 0.3 && Math.abs(tz - view.z) < 1e-3 && !view.dirty) return;
+  const k = reducedMotion ? 1 : 1 - Math.exp(-dt * 6);
+  view.x += (tx - view.x) * k; view.y += (ty - view.y) * k; view.z += (tz - view.z) * k;
+  view.dirty = false;
+  camera.zoom = view.z;
+  if (Math.abs(view.x) > 0.5 || Math.abs(view.y) > 0.5) camera.setViewOffset(W, Hh, view.x, view.y, W, Hh);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
 function updateLegend() {
   if (!tvMode) { $('sub').textContent = 'Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.'; return; }
   $('sub').textContent = padSeen
@@ -2654,7 +2713,7 @@ function setTv(on) {
   $('tvBtn').setAttribute('aria-pressed', String(on));
   $('fullBtn').hidden = !on;
   try { localStorage.setItem('walnut-bg-tv', on ? '1' : '0'); } catch (err) { /* storage unavailable */ }
-  if (on) { navActive = true; armIdle(); }
+  if (on) { navActive = true; armIdle(); armBackTrap(); }
   else document.documentElement.classList.remove('idle');
   updateLegend();
   viewPortrait = null;
@@ -2734,6 +2793,7 @@ function frame(now) {
   updateRoom(dt, now);
   if (intro) updateIntro(dt); else controls.update();
   updateNav(now, dt);
+  updateViewShift(dt);
   trackFps(dt);
   if (composer && quality === 'high') composer.render(); else renderer.render(scene, camera);
   requestAnimationFrame(frame);
