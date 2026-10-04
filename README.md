@@ -1,5 +1,7 @@
 # Walnut Backgammon
 
+**Play it:** https://robogb2021.github.io/walnut-backgammon/ (TV mode: add `#tv` to the address)
+
 A 3D backgammon table built with [three.js](https://threejs.org) and the
 [cannon-es](https://github.com/pmndrs/cannon-es) physics engine. It is a single
 self-contained `index.html` with no build step.
