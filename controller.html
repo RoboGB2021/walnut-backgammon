@@ -172,6 +172,8 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
       <div class="set-group"><span class="set-label">TV mode</span><p class="set-help">Bigger text and buttons on the big screen.</p>
         <div class="opts"><button type="button" class="opt" data-key="tv" data-value="1">On</button><button type="button" class="opt" data-key="tv" data-value="0">Off</button></div></div>
       <div class="set-group">
+        <button type="button" class="btn" id="invite">Invite a friend to play remotely</button>
+        <p class="set-help">Sends a link (WhatsApp, Messages…) that opens the whole table on their screen so they can play Black from anywhere.</p>
         <button type="button" class="btn" id="showCodes">Show join codes on the TV</button>
         <button type="button" class="btn danger" id="newGame">New game</button>
         <div id="confirmNew" class="opts" hidden><button type="button" class="btn danger" id="newYes">Yes, start over</button><button type="button" class="btn" id="newNo">Keep playing</button></div>
@@ -347,6 +349,16 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
       document.querySelectorAll(`#menu .opt[data-key="${key}"]`).forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
     };
   });
+  // Invite: share a link that opens the game itself as a remote player at this table.
+  $('invite').onclick = async () => {
+    buzz(8);
+    const url = new URL('./', location.href).href + `#play-${room}-b`;
+    const text = `Fancy a game of backgammon? Tap to join my table and play Black: ${url}`;
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Walnut Backgammon', text, url }); return; }
+    } catch (err) { if (err && err.name === 'AbortError') return; }
+    location.href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  };
   $('showCodes').onclick = () => { buzz(8); send({ type: 'setting', key: 'phones', value: true }); openMenu(false); };
   $('newGame').onclick = () => { $('newGame').hidden = true; $('confirmNew').hidden = $('newHelp').hidden = false; };
   $('newNo').onclick = () => { $('newGame').hidden = false; $('confirmNew').hidden = $('newHelp').hidden = true; };

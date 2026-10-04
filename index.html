@@ -234,6 +234,13 @@ html.tv .phones h2 { font-size: 32px; }
 html.tv .phones p { font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .phones { animation: none; } }
 .build { font: 500 10.5px var(--font-mono); letter-spacing: 0.04em; color: var(--ink-dim); margin-left: 6px; vertical-align: 2px; }
+html.remote .host-only { display: none !important; }
+.invite-link { background: #0d0a08; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-wrap: anywhere; }
+.invite-link code { font: 500 14px var(--font-mono); color: var(--ink); }
+.invite-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.invite-actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.btn.wa { background: #1f7a4d; border-color: transparent; color: #fff; }
+html.tv .invite-link code { font-size: 18px; }
 .fatal { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gutter); text-align: center; color: var(--ink-dim); }
 
 @media (max-width: 640px), (max-height: 560px) {
@@ -269,7 +276,7 @@ html.tv .phones p { font-size: 18px; }
 
 <header class="bar top">
   <section class="panel status-panel">
-    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 15</span></p>
+    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 16</span></p>
     <p id="status" class="status" aria-live="polite">Throw one die each to decide who moves first.</p>
     <p id="sub" class="sub">Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.</p>
   </section>
@@ -285,18 +292,19 @@ html.tv .phones p { font-size: 18px; }
     <button id="menuBtn" type="button" class="btn small menu-btn" aria-expanded="false" aria-controls="settings" title="Game settings (M)"><span aria-hidden="true">&#9776;</span> Menu</button>
     </div>
     <div id="settings" class="settings" hidden>
-      <div class="seg" role="group" aria-label="Opponent">
+      <div class="seg host-only" role="group" aria-label="Opponent">
         <button id="modeAi" type="button" aria-pressed="true">vs Computer</button>
         <button id="modePvp" type="button" aria-pressed="false">Two players</button>
       </div>
       <button id="soundBtn" type="button" class="btn small" aria-pressed="true">Sound on</button>
-      <button id="learnBtn" type="button" class="btn small toggle" aria-pressed="false">Learning mode</button>
+      <button id="learnBtn" type="button" class="btn small toggle host-only" aria-pressed="false">Learning mode</button>
       <button id="tvBtn" type="button" class="btn small toggle" aria-pressed="false">TV mode</button>
-      <button id="phonesBtn" type="button" class="btn small">Phones</button>
+      <button id="phonesBtn" type="button" class="btn small host-only">Phones</button>
+      <button id="inviteBtn" type="button" class="btn small host-only">Invite a friend</button>
       <button id="camBtn" type="button" class="btn small toggle" aria-pressed="true" title="Action follows the dice and each move">Camera: Action</button>
       <button id="qualityBtn" type="button" class="btn small" title="Smooth turns off glow and dust for slower devices">Graphics: High</button>
       <button id="fullBtn" type="button" class="btn small" hidden>Full screen</button>
-      <button id="newBtn" type="button" class="btn small">New game</button>
+      <button id="newBtn" type="button" class="btn small host-only">New game</button>
     </div>
   </section>
 </header>
@@ -325,6 +333,17 @@ html.tv .phones p { font-size: 18px; }
 <aside id="lesson" class="lesson" hidden role="status" aria-live="polite"><b id="lessonTitle"></b><button id="lessonClose" type="button" class="card-x" aria-label="Dismiss">&times;</button><p id="lessonText"></p></aside>
 
 <div id="ctrlBanner" class="ctrl-banner" hidden aria-live="polite"><span id="ctrlSwatch" class="swatch w"></span><span id="ctrlText"></span></div>
+<section id="invitePanel" class="phones" hidden role="dialog" aria-labelledby="inviteTitle">
+  <div class="card-head"><h2 id="inviteTitle">Invite a friend</h2><button id="inviteClose" type="button" class="card-x" aria-label="Close">&times;</button></div>
+  <p>Send this link to a friend. They open it on their phone, tablet or computer and play Black from wherever they are, with the whole table on their screen. Keep this page open while you play: it is the table.</p>
+  <div class="invite-link"><code id="inviteUrl">Setting up your table…</code></div>
+  <div class="invite-actions">
+    <button id="inviteShare" type="button" class="btn primary">Share…</button>
+    <a id="inviteWa" class="btn wa" target="_blank" rel="noopener">WhatsApp</a>
+    <button id="inviteCopy" type="button" class="btn">Copy link</button>
+  </div>
+  <p id="inviteState" class="phones-foot">Waiting for your friend to open the link…</p>
+</section>
 <section id="phonesPanel" class="phones" hidden role="dialog" aria-labelledby="phonesTitle">
   <div class="card-head"><h2 id="phonesTitle">Play from your phones</h2><button id="phonesClose" type="button" class="card-x" aria-label="Close">&times;</button></div>
   <p>Each player scans their code with their phone camera. Your phone shows your own board, dice and buttons, and only works on your turn.</p>
@@ -372,6 +391,10 @@ const GRAV = 38;                               // scaled gravity for the 4 cm un
 
 const $ = (id) => document.getElementById(id);
 const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+// Opened from an invite link (#play-<table>-<colour>): this page mirrors a friend's game instead of running its own.
+const remoteMatch = location.hash.match(/^#play-(walnut-bg-[a-z0-9]{4,12})-(w|b)$/i);
+const remote = remoteMatch ? { room: remoteMatch[1].toLowerCase(), seat: remoteMatch[2].toLowerCase(), link: null, last: null, sources: [], stacksKey: '', rollSeq: 0, pending: null, cardKey: '' } : null;
+if (remote) document.documentElement.classList.add('remote');
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -1081,7 +1104,8 @@ function fitView() {
   if (portrait !== viewPortrait) {
     viewPortrait = portrait;
     const polar = portrait ? 0.42 : 0.68;
-    dir = portrait ? new THREE.Vector3(Math.sin(polar), Math.cos(polar), 0) : new THREE.Vector3(0, Math.cos(polar), Math.sin(polar));
+    const flip = remote && remote.seat === 'b' ? -1 : 1; // a remote Black player looks from Black's side of the table
+    dir = portrait ? new THREE.Vector3(flip * Math.sin(polar), Math.cos(polar), 0) : new THREE.Vector3(0, Math.cos(polar), flip * Math.sin(polar));
   } else dir = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(dir, d);
   if (cam.home) cam.home.pos.copy(camera.position);
@@ -1939,6 +1963,7 @@ function launchDice(list, sides) {
   });
 }
 // Throw until the dice land flat on the board; the result is whatever physics leaves face up.
+let rollSeq = 0, lastRoll = null; // shared with remote players so their dice land on the same numbers
 async function throwDice(list, sides) {
   const myGen = gen;
   for (;;) {
@@ -1947,12 +1972,14 @@ async function throwDice(list, sides) {
     await wait(540);
     if (myGen !== gen) return null;
     launchDice(list, sides);
+    rollSeq++;
+    lastRoll = { seq: rollSeq, sides: sides.map((p) => sideKey(p)), values: null };
     Snd.toss();
     camFollow('dice', () => diceCentre(list));
     const res = await new Promise((resolve) => { rolling = { list, t: 0, still: 0, resolve }; });
     camRelease(res.ok ? 1100 : 250);
     if (myGen !== gen) return null;
-    if (res.ok) return res.values;
+    if (res.ok) { lastRoll.values = res.values; return res.values; }
     toast(res.reason);
     await wait(950);
     if (myGen !== gen) return null;
@@ -2127,6 +2154,7 @@ function afterMove() {
   refresh();
 }
 async function undo() {
+  if (remote) { remoteSend({ type: 'undo' }); return; }
   if (!undoStack.length || (phase !== 'move' && phase !== 'done')) return;
   const myGen = gen, snap = undoStack.pop();
   state = snap.state; stacks = snap.stacks; rem = snap.rem; played.length = snap.played;
@@ -2205,8 +2233,13 @@ function refreshHud() {
   $('pipW').textContent = pipCount(state, W); $('pipB').textContent = pipCount(state, B);
   $('offW').textContent = state.off.w; $('offB').textContent = state.off.b;
   $('scoreW').textContent = score.w; $('scoreB').textContent = score.b;
-  $('nameW').innerHTML = (mode === 'ai' ? 'You' : 'White') + (phones.seats.w ? '<span class="ph-tag">phone</span>' : '');
-  $('nameB').innerHTML = (mode === 'ai' ? 'Computer' : 'Black') + (phones.seats.b && mode !== 'ai' ? '<span class="ph-tag">phone</span>' : '');
+  if (remote) {
+    $('nameW').textContent = remote.seat === 'w' ? 'You' : 'Your friend';
+    $('nameB').textContent = remote.seat === 'b' ? 'You' : 'Your friend';
+  } else {
+    $('nameW').innerHTML = (mode === 'ai' ? 'You' : 'White') + (phones.seats.w ? `<span class="ph-tag">${phones.seats.w.remote ? 'remote' : 'phone'}</span>` : '');
+    $('nameB').innerHTML = (mode === 'ai' ? 'Computer' : 'Black') + (phones.seats.b && mode !== 'ai' ? `<span class="ph-tag">${phones.seats.b.remote ? 'remote' : 'phone'}</span>` : '');
+  }
   $('rowW').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === W);
   $('rowB').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === B);
   const left = rem.slice();
@@ -2223,6 +2256,12 @@ function refreshHud() {
   else if (phase === 'over') { pb.textContent = 'Next game'; pb.disabled = false; }
   else { pb.textContent = phase === 'move' ? 'Choose a move' : phase === 'ai' ? 'Computer moving…' : phase === 'review' ? 'Reviewing…' : 'Roll'; pb.disabled = true; }
   $('undoBtn').disabled = !(undoStack.length && (phase === 'move' || phase === 'done'));
+  if (remote && remote.last) {
+    const r = remote.last, free = phase === 'opening' || phase === 'over';
+    pb.textContent = remoteMine() || free ? r.primary.label : `${r.turn === 'w' ? 'White' : 'Black'} is playing`;
+    pb.disabled = !(r.primary.enabled && (remoteMine() || free));
+    $('undoBtn').disabled = !(r.canUndo && remoteMine());
+  }
   $('modeAi').setAttribute('aria-pressed', String(mode === 'ai'));
   $('modePvp').setAttribute('aria-pressed', String(mode === 'pvp'));
 }
@@ -2398,6 +2437,7 @@ function altsHtml(plays, pl, mineKey, mineScore) {
 
 // Hint: the coach works out the best play, animates it on the board and explains it.
 function showHint() {
+  if (remote) { remoteSend({ type: 'hint' }); return; }
   if (!learning || phase !== 'move' || !isHuman(turn)) return;
   selected = null; dests = new Map();
   openCard({ title: "Coach's best move", moveHtml: '<span class="thinking" aria-label="Thinking"><i></i><i></i><i></i></span>', reasons: [] });
@@ -2501,8 +2541,9 @@ function turnLessons() {
 let sources = new Set(), movableTops = new Set(), selectedTop = -1;
 function refresh() {
   sources = new Set(); movableTops = new Set(); selectedTop = -1;
-  if (phase === 'move' && isHuman(turn)) {
-    for (const m of legal) sources.add(m.from);
+  const srcList = remote ? (remoteMine() && phase === 'move' ? remote.sources : null) : (phase === 'move' && isHuman(turn) ? legal.map((m) => m.from) : null);
+  if (srcList) {
+    for (const m of srcList) sources.add(m);
     for (const s of sources) { const st = stacks[locKey(turn, s)]; if (st.length) movableTops.add(st[st.length - 1]); }
     if (selected !== null) { const st = stacks[locKey(turn, selected)]; selectedTop = st[st.length - 1]; }
   }
@@ -2527,6 +2568,7 @@ function refresh() {
 
 function primaryAction() {
   Snd.init();
+  if (remote) { remoteSend({ type: 'primary' }); return; }
   if (phase === 'opening') openingRoll();
   else if (phase === 'await' && isHuman(turn)) rollFor(turn);
   else if (phase === 'done') { if (learning && isHuman(turn) && turnStart && played.length) startReview(); else endTurn(); }
@@ -2641,6 +2683,7 @@ canvas.addEventListener('pointermove', (e) => {
   canvas.classList.toggle('can-pick', loc !== null && (sources.has(loc) || dests.has(loc)));
 });
 function handleClick(loc) {
+  if (remote) { if (remoteMine() && phase === 'move' && loc !== null) remoteSend({ type: 'pick', loc }); return; }
   if (phase !== 'move' || !isHuman(turn)) return;
   if (selected !== null && loc !== null && dests.has(loc)) { playPath(dests.get(loc)); return; }
   if (loc !== null && sources.has(loc) && selected !== loc) {
@@ -2659,7 +2702,7 @@ let navActive = false, navIdx = 0, navLastSel = null, navInput = 'keys';
 let navOwner = null, navOwnerAt = 0; // the player whose phone last moved the cursor
 // The things you can choose right now: movable checkers, or, once one is picked, where it can go.
 function navOptions() {
-  if (phase !== 'move' || !isHuman(turn)) return [];
+  if (phase !== 'move' || !(remote ? remoteMine() : isHuman(turn))) return [];
   if (selected === null) {
     return [...sources].map((loc) => {
       const st = stacks[locKey(turn, loc)];
@@ -2712,10 +2755,14 @@ function navAction(act, input = 'keys') {
   if (act === 'hint') { showHint(); return; }
   if (act === 'undo') { undo(); return; }
   if (act === 'primary') { primaryAction(); return; }
-  if (phase === 'move' && isHuman(turn)) {
+  if (phase === 'move' && (remote ? remoteMine() : isHuman(turn))) {
     const opts = navOptions();
     navActive = true;
-    if (act === 'back') { if (selected !== null) { selected = null; dests = new Map(); refresh(); restoreNavToSource(); } return; }
+    if (act === 'back') {
+      if (remote) { remoteSend({ type: 'cancel' }); return; }
+      if (selected !== null) { selected = null; dests = new Map(); refresh(); restoreNavToSource(); }
+      return;
+    }
     if (!opts.length) return;
     navIdx = clamp(navIdx, 0, opts.length - 1);
     if (act === 'ok') {
@@ -2821,12 +2868,16 @@ function pingBanner() {
 function updateCtrlBanner() {
   const seat = sideKey(turn), live = phase !== 'opening' && phase !== 'over' && isHuman(turn) && !!phones.seats[seat];
   const el = $('ctrlBanner');
-  if (el.hidden === !live && el.dataset.seat === seat) return;
-  el.hidden = !live; el.dataset.seat = seat;
+  if (remote) { el.hidden = true; return; }
+  const kind = live && phones.seats[seat].remote ? 'r' : 'p';
+  if (el.hidden === !live && el.dataset.seat === seat + kind) return;
+  el.hidden = !live; el.dataset.seat = seat + kind;
   if (!live) return;
   $('ctrlSwatch').className = `swatch ${seat}`;
   el.style.setProperty('--ctrl', seat === 'w' ? '#fff1d0' : '#ff5a4a');
-  $('ctrlText').textContent = `${mode === 'ai' && seat === 'w' ? 'You are' : `${seat === 'w' ? 'White' : 'Black'} is`} playing from ${mode === 'ai' && seat === 'w' ? 'your' : 'their'} phone`;
+  $('ctrlText').textContent = phones.seats[seat].remote
+    ? `${seat === 'w' ? 'White' : 'Black'} is playing remotely`
+    : `${mode === 'ai' && seat === 'w' ? 'You are' : `${seat === 'w' ? 'White' : 'Black'} is`} playing from ${mode === 'ai' && seat === 'w' ? 'your' : 'their'} phone`;
 }
 
 // While a coach card is open, slide and shrink the board into the free part of the screen.
@@ -3013,8 +3064,9 @@ function attachPhone(conn) {
     if (msg.type === 'hello') {
       const seat = msg.seat === 'b' ? 'b' : 'w', old = phones.seats[seat];
       if (old && old !== conn) { try { old.send({ type: 'replaced' }); old.close(); } catch (err) { /* already closed */ } }
-      phones.seats[seat] = conn; conn.seat = seat;
-      toast(`${seat === 'w' ? 'White' : 'Black'}'s phone is connected`);
+      phones.seats[seat] = conn; conn.seat = seat; conn.remote = msg.kind === 'remote';
+      toast(conn.remote ? `Your friend has joined as ${seat === 'w' ? 'White' : 'Black'}` : `${seat === 'w' ? 'White' : 'Black'}'s phone is connected`);
+      if (conn.remote) { renderInvite(); setTimeout(() => { if (!$('invitePanel').hidden) $('invitePanel').hidden = true; }, 1800); }
       if (seat === 'b' && mode === 'ai') setMode('pvp');
       phones.lastSent = '';
       renderPhones(); refreshHud();
@@ -3082,6 +3134,7 @@ function applySetting(key, v) {
     case 'sound': setSound(!!v); note = `Sound ${Snd.on ? 'on' : 'off'}`; break;
     case 'tv': setTv(!!v); note = `TV mode ${tvMode ? 'on' : 'off'}`; break;
     case 'phones': togglePhones(true); break;
+    case 'invite': openInvite(); break;
     case 'newgame': score.w = score.b = 0; newGame(false); note = 'New game'; break;
     default: return;
   }
@@ -3108,6 +3161,8 @@ function phoneSnapshot() {
     type: 'state', turn: turn === W ? 'w' : 'b', human: isHuman(turn), phase, mode, learning,
     pts: state.pts, bar: state.bar, off: state.off, dice: turnDice, rem,
     sources: [...sources], selected, dests: [...dests.keys()],
+    destList: [...dests].map(([to, path]) => ({ to, hit: path[path.length - 1].hit })),
+    stacks, roll: lastRoll,
     status: $('status').textContent,
     primary: { label: $('primaryBtn').textContent, enabled: !$('primaryBtn').disabled },
     canUndo: !$('undoBtn').disabled,
@@ -3241,6 +3296,190 @@ $('camBtn').addEventListener('click', () => setCamMode(cam.mode === 'action' ? '
 try { const saved = localStorage.getItem('walnut-bg-cam'); setCamMode(saved === 'classic' ? 'classic' : 'action', false); } catch (err) { setCamMode('action', false); }
 
 /* ------------------------------------------------------------------ *
+ *  Invite a friend: a link that opens this page as a remote player    *
+ * ------------------------------------------------------------------ */
+function inviteUrl() { return phones.room ? `${PUBLIC_URL}#play-${phones.room}-b` : ''; }
+const inviteText = () => `Fancy a game of backgammon? Tap to join my table and play Black: ${inviteUrl()}`;
+function renderInvite() {
+  if ($('invitePanel').hidden) return;
+  const url = inviteUrl();
+  $('inviteUrl').textContent = url || 'Setting up your table…';
+  $('inviteWa').href = url ? `https://wa.me/?text=${encodeURIComponent(inviteText())}` : '#';
+  $('inviteShare').hidden = !navigator.share;
+  const joined = phones.seats.b && phones.seats.b.remote;
+  $('inviteState').textContent = phones.error ? 'Couldn’t set up the table. Check the internet connection and try again.'
+    : joined ? 'Your friend is here. Have a good game!' : url ? 'Waiting for your friend to open the link…' : 'Setting up your table…';
+}
+function openInvite() {
+  try { localStorage.setItem('walnut-bg-hosting', '1'); } catch (err) { /* storage unavailable */ }
+  $('invitePanel').hidden = false;
+  setMenu(false);
+  startPhones();
+  renderInvite();
+  const wait = setInterval(() => { renderInvite(); if (phones.room || phones.error || $('invitePanel').hidden) clearInterval(wait); }, 400);
+}
+$('inviteBtn').addEventListener('click', openInvite);
+$('inviteClose').addEventListener('click', () => { $('invitePanel').hidden = true; });
+$('inviteShare').addEventListener('click', async () => {
+  try { await navigator.share({ title: 'Walnut Backgammon', text: inviteText(), url: inviteUrl() }); } catch (err) { /* cancelled */ }
+});
+$('inviteCopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(inviteUrl()); toast('Link copied'); }
+  catch (err) { const r = document.createRange(); r.selectNodeContents($('inviteUrl')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('Select and copy the link'); }
+});
+
+/* ------------------------------------------------------------------ *
+ *  Remote player: mirror the host's table and send our moves back     *
+ * ------------------------------------------------------------------ */
+const remoteMine = () => !!(remote && remote.last && remote.last.turn === remote.seat && remote.last.human);
+function remoteSend(msg) { if (remote && remote.link) remote.link.send(msg); }
+async function remoteConnect() {
+  setStatus('Joining your friend’s table…');
+  $('sub').textContent = `You are playing ${remote.seat === 'w' ? 'White' : 'Black'} at a friend’s table.`;
+  await Promise.allSettled([loadScript(PEER_SRC), loadScript(MQTT_SRC)]);
+  const cid = Math.random().toString(36).slice(2, 12);
+  let peer = null, relay = null, stageTimer = 0, pingTimer = 0, attempt = 0, retries = 0, lastHeard = 0, brokerIdx = 0;
+  const teardown = () => {
+    clearTimeout(stageTimer); clearInterval(pingTimer);
+    try { if (peer) peer.destroy(); } catch (err) { /* gone */ }
+    try { if (relay) relay.end(true); } catch (err) { /* gone */ }
+    peer = relay = null; remote.link = null;
+  };
+  const retry = () => { retries++; setTimeout(connect, Math.min(8000, 1500 * retries)); };
+  const linked = (link) => {
+    remote.link = link; retries = 0; lastHeard = performance.now();
+    link.send({ type: 'hello', seat: remote.seat, kind: 'remote' });
+  };
+  function tryRelay() {
+    clearTimeout(stageTimer);
+    if (remote.link && remote.link.kind === 'relay') return;
+    try { if (peer) peer.destroy(); } catch (err) { /* gone */ }
+    peer = null;
+    if (!window.mqtt) { setStatus('Couldn’t reach your friend’s table. Retrying…'); retry(); return; }
+    const my = attempt, url = BROKERS[brokerIdx % BROKERS.length];
+    try { if (relay) relay.end(true); } catch (err) { /* gone */ }
+    relay = window.mqtt.connect(url, { clientId: 'walnut-rm-' + cid + '-' + brokerIdx, reconnectPeriod: 0, connectTimeout: 8000, clean: true });
+    const inbox = `walnut-bg/${remote.room}/to/${cid}`, outbox = `walnut-bg/${remote.room}/tv`;
+    const pub = (m) => relay && relay.connected && relay.publish(outbox, JSON.stringify({ ...m, seat: remote.seat, cid }));
+    relay.on('connect', () => {
+      if (my !== attempt) return;
+      relay.subscribe(inbox, () => pub({ type: 'hello', kind: 'remote' }));
+      stageTimer = setTimeout(() => { if (my === attempt && !remote.link) { brokerIdx++; tryRelay(); } }, 6000);
+    });
+    relay.on('message', (topic, payload) => {
+      if (my !== attempt || topic !== inbox) return;
+      let m; try { m = JSON.parse(payload.toString()); } catch (err) { return; }
+      lastHeard = performance.now();
+      if (!remote.link) { remote.link = { kind: 'relay', send: pub }; retries = 0; clearInterval(pingTimer); pingTimer = setInterval(() => pub({ type: 'ping' }), 4000); }
+      onRemoteMessage(m);
+    });
+    relay.on('error', () => { if (my === attempt && !remote.link) { brokerIdx++; setTimeout(() => { if (my === attempt && !remote.link) tryRelay(); }, 800); } });
+    relay.on('close', () => { if (my === attempt && remote.link && remote.link.kind === 'relay') { setStatus('Lost the connection. Reconnecting…'); retry(); } });
+  }
+  function connect() {
+    teardown(); attempt++;
+    const my = attempt;
+    if (!window.Peer) { tryRelay(); return; }
+    peer = new window.Peer(undefined, { debug: 0 });
+    peer.on('open', () => {
+      if (my !== attempt || remote.link) return;
+      const conn = peer.connect(remote.room, { reliable: true, serialization: 'json' });
+      conn.on('open', () => { if (my !== attempt || remote.link) { try { conn.close(); } catch (err) { /* gone */ } return; } clearTimeout(stageTimer); linked({ kind: 'direct', send: (m) => conn.send(m) }); });
+      conn.on('data', (m) => { lastHeard = performance.now(); onRemoteMessage(m); });
+      conn.on('close', () => { if (my === attempt && remote.link && remote.link.kind === 'direct') { setStatus('Lost the connection. Reconnecting…'); retry(); } });
+    });
+    peer.on('error', (err) => { if (my === attempt && !remote.link && ['peer-unavailable', 'network', 'server-error', 'socket-error'].includes(err.type)) tryRelay(); });
+    stageTimer = setTimeout(() => { if (my === attempt && !remote.link) tryRelay(); }, 7000);
+  }
+  setInterval(() => { if (remote.link && performance.now() - lastHeard > 13000) { setStatus('Lost the connection. Reconnecting…'); connect(); } }, 3000);
+  connect();
+}
+function onRemoteMessage(m) {
+  if (!m || typeof m !== 'object') return;
+  if (m.type === 'replaced') { setStatus('Another device has taken your seat at this table.'); remote.link = null; return; }
+  if (m.type === 'state') applyRemote(m);
+}
+// Bring this page in line with the host's latest state.
+function applyRemote(s) {
+  const first = !remote.last;
+  remote.last = s;
+  turn = s.turn === 'w' ? W : B; phase = s.phase; mode = s.mode; learning = false;
+  Object.assign(score, s.score);
+  turnDice = s.dice || []; rem = s.rem || [];
+  state = { pts: s.pts.slice(), bar: { ...s.bar }, off: { ...s.off } };
+  const key = JSON.stringify(s.stacks);
+  if (key !== remote.stacksKey) { remote.stacksKey = key; stacks = cloneStacks(s.stacks); syncPositions(first); }
+  selected = s.selected;
+  dests = new Map((s.destList || []).map((d) => [d.to, [{ to: d.to, hit: d.hit }]]));
+  remote.sources = s.sources || [];
+  if (s.roll && s.roll.seq !== remote.rollSeq) { remote.rollSeq = s.roll.seq; if (!first) remoteThrow(s.roll); }
+  if (s.roll && remote.pending && remote.pending.seq === s.roll.seq && s.roll.values) remote.pending.values = s.roll.values;
+  const yours = remoteMine();
+  setStatus(yours ? s.status.replace(/^(White|Black) to /, 'Your turn: ') : s.status);
+  if (yours && first === false && remote.wasMine === false) toast('Your turn');
+  remote.wasMine = yours;
+  // Coach cards (for example the review after your move) are answered from here.
+  const showCard = s.card && (yours || phase === 'opening' || phase === 'over');
+  const cardKey = showCard ? JSON.stringify(s.card) : '';
+  if (cardKey !== remote.cardKey) {
+    remote.cardKey = cardKey;
+    if (!showCard) closeCard(false);
+    else openCard({
+      title: s.card.title,
+      badge: s.card.badge ? [({ 'Best move': 'best', Good: 'good', Doubtful: 'doubtful', Mistake: 'bad' })[s.card.badge] || 'good', s.card.badge] : null,
+      moveHtml: s.card.move.map((n, i) => `<span class="nota${s.card.move.length > 1 && i === 0 ? ' mine' : ''}">${esc(n)}</span>`).join(''),
+      reasons: s.card.reasons.map((r) => ({ k: 'quiet', t: r.t, x: r.x })),
+      actions: s.card.actions.map((label, i) => ({ label, primary: i === 0, run: () => remoteSend({ type: 'card', i }) })),
+      onClose: () => remoteSend({ type: 'closeCard' }),
+    });
+  }
+  refresh();
+}
+// Throw our own dice for the show; once they settle, tip any die that disagrees onto the host's number.
+function remoteThrow(roll) {
+  const sides = roll.sides.map((k) => (k === 'w' ? W : B));
+  const list = roll.sides[0] !== roll.sides[1] ? [dice.w[0], dice.b[0]] : [dice[roll.sides[0]][0], dice[roll.sides[0]][1]];
+  hideDice(); Snd.shake(0.4);
+  remote.pending = { seq: roll.seq, list, values: roll.values, t: 0, still: 0, fix: null };
+  setTimeout(() => {
+    if (!remote.pending || remote.pending.seq !== roll.seq) return;
+    launchDice(list, sides); Snd.toss();
+    camFollow('dice', () => diceCentre(list));
+  }, 420);
+}
+const _up = new THREE.Vector3(0, 1, 0);
+function updateRemoteDice(dt) {
+  const p = remote.pending;
+  if (!p) return;
+  p.t += dt;
+  if (p.fix) {
+    p.fix.t += dt;
+    const u = clamp(p.fix.t / 0.35, 0, 1), e = easeInOut(u);
+    p.fix.items.forEach((f) => {
+      const q = f.from.clone().slerp(f.to, e);
+      f.body.quaternion.set(q.x, q.y, q.z, q.w);
+      f.body.position.y = f.y0 + (f.y1 - f.y0) * e + Math.sin(Math.PI * u) * 0.28;
+    });
+    if (u >= 1) { remote.pending = null; camRelease(900); }
+    return;
+  }
+  if (p.t < 0.9) return;
+  let still = true;
+  for (const d of p.list) if (!d.inWorld || d.body.velocity.length() > 0.06 || d.body.angularVelocity.length() > 0.1) still = false;
+  p.still = still ? p.still + dt : 0;
+  if (!(p.values && (p.still > 0.3 || p.t > 7))) return;
+  p.fix = { t: 0, items: p.list.map((d, i) => {
+    const b = d.body;
+    b.type = CANNON.Body.STATIC; b.velocity.setZero(); b.angularVelocity.setZero();
+    const from = new THREE.Quaternion(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
+    const ax = AXES[FACE_VALUES.indexOf(p.values[i])];
+    const worldAxis = new THREE.Vector3(ax.x, ax.y, ax.z).applyQuaternion(from);
+    const to = new THREE.Quaternion().setFromUnitVectors(worldAxis, _up).multiply(from);
+    return { body: b, from, to, y0: b.position.y, y1: b.position.y > D ? b.position.y : D / 2 };
+  }) };
+}
+
+/* ------------------------------------------------------------------ *
  *  Main loop                                                          *
  * ------------------------------------------------------------------ */
 let last = performance.now();
@@ -3252,6 +3491,7 @@ function frame(now) {
   updateCheckers(dt);
   world.step(1 / 120, dt, 8);
   updateDice(dt);
+  if (remote) updateRemoteDice(dt);
   const pulse = 0.5 + 0.5 * Math.sin(now * 0.006), anySel = selectedTop >= 0;
   for (const c of checkers) {
     const sel = c.id === selectedTop, movable = movableTops.has(c.id);
@@ -3308,6 +3548,8 @@ function start(data) {
   fitView();
   newGame(true);
   if (!(data && data.state)) startIntro();
+  if (remote) { remoteConnect(); requestAnimationFrame(frame); return; }
+  try { if (localStorage.getItem('walnut-bg-hosting') === '1') startPhones(); } catch (err) { /* storage unavailable */ }
   if (data && data.state && data.stacks) {
     state = data.state; stacks = data.stacks; turn = data.turn === B ? B : W; mode = data.mode === 'pvp' ? 'pvp' : 'ai';
     Object.assign(score, data.score || {});

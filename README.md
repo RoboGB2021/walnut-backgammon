@@ -113,6 +113,23 @@ network connection.
   moment of slow motion, and a win gets a slow victory orbit. The camera stays
   still while you choose your move. **Classic** keeps the camera where you put it.
 
+- **Play a friend remotely.** Open **Menu → Invite a friend** on the game, or
+  **Menu → Invite a friend to play remotely** on your phone controller. You get
+  a link to send by WhatsApp, Messages or anything else (**Share…**, a
+  **WhatsApp** button and **Copy link**). Your friend taps it and the full 3D
+  table opens on their phone, tablet or computer, viewed from Black's side.
+  They play by clicking or tapping the board, or with the arrow keys, and have
+  their own Roll / End turn and Undo buttons and the coach's cards.
+  - Your game page is the table: it runs the rules and must stay open. Your
+    friend's page mirrors it and sends their moves back. Both screens throw
+    their own dice with real physics; your page's roll is the official one, and
+    if your friend's dice settle differently they tip over onto the right
+    numbers.
+  - The connection works across the internet: a direct WebRTC link where
+    possible, otherwise the public MQTT relay. On the TV the banner reads "Black
+    is playing remotely". The game remembers it is hosting, so your friend can
+    reconnect if you reload.
+
 ## Controls
 
 | Action | Input |
