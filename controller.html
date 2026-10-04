@@ -131,6 +131,7 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -171,38 +172,96 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
     document.title = `${seat === 'w' ? 'White' : 'Black'} · Walnut Backgammon`;
     connect();
   }
+  // Two routes to the TV: a direct WebRTC link first, then a relay through a public MQTT broker.
+  const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+  const cid = Math.random().toString(36).slice(2, 12);
+  let link = null, relay = null, brokerIdx = 0, stageTimer = 0, pingTimer = 0, lastHeard = 0, attempt = 0;
+  function teardown() {
+    clearTimeout(stageTimer); clearInterval(pingTimer); clearTimeout(retryTimer);
+    try { if (peer) peer.destroy(); } catch (err) { /* gone */ }
+    try { if (relay) relay.end(true); } catch (err) { /* gone */ }
+    peer = null; relay = null; conn = null; link = null;
+  }
   function connect() {
-    clearTimeout(retryTimer);
-    try { if (peer) peer.destroy(); } catch (err) { /* already gone */ }
-    if (!window.Peer) { setConn('Could not load the connection library', 'bad'); return; }
-    setConn(retries ? 'Reconnecting…' : 'Connecting…');
+    teardown();
+    attempt++;
+    if (!window.Peer && !window.mqtt) { setConn('Could not load the connection library', 'bad'); return; }
+    if (!window.Peer) { tryRelay(); return; }
+    setConn(retries ? 'Reconnecting…' : 'Contacting the TV…');
+    const my = attempt;
     peer = new window.Peer(undefined, { debug: 0 });
     peer.on('open', () => {
+      if (my !== attempt || link) return;
+      setConn('Found the server, linking to the TV…');
       conn = peer.connect(room, { reliable: true, serialization: 'json' });
-      conn.on('open', () => { retries = 0; setConn('Connected', 'ok'); conn.send({ type: 'hello', seat }); });
-      conn.on('data', onMessage);
-      conn.on('close', () => { setConn('Lost the TV. Reconnecting…', 'bad'); retry(); });
-      conn.on('error', () => retry());
+      conn.on('open', () => {
+        if (my !== attempt || link) { try { conn.close(); } catch (err) { /* gone */ } return; }
+        clearTimeout(stageTimer);
+        link = { kind: 'direct', send: (m) => conn.send(m) };
+        retries = 0; lastHeard = performance.now();
+        setConn('Connected', 'ok');
+        conn.send({ type: 'hello', seat });
+      });
+      conn.on('data', (m) => { lastHeard = performance.now(); onMessage(m); });
+      conn.on('close', () => { if (link && link.kind === 'direct' && my === attempt) { setConn('Lost the TV. Reconnecting…', 'bad'); retry(); } });
     });
     peer.on('error', (err) => {
-      if (err.type === 'peer-unavailable') setConn('Can’t find the TV. Is the game open?', 'bad');
-      else setConn('Connection problem. Retrying…', 'bad');
-      retry();
+      if (my !== attempt || link) return;
+      // The TV may only be reachable through the relay; switch now rather than wait.
+      if (err.type === 'peer-unavailable' || err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') tryRelay();
     });
-    peer.on('disconnected', () => { try { peer.reconnect(); } catch (err) { retry(); } });
+    stageTimer = setTimeout(() => { if (my === attempt && !link) tryRelay(); }, 7000);
+  }
+  function tryRelay() {
+    clearTimeout(stageTimer);
+    if (link && link.kind === 'relay') return;
+    try { if (peer) peer.destroy(); } catch (err) { /* gone */ }
+    peer = null;
+    if (!window.mqtt) { setConn('Couldn’t reach the TV', 'bad'); retry(); return; }
+    const my = attempt, url = BROKERS[brokerIdx % BROKERS.length];
+    setConn('Trying another route…');
+    try { if (relay) relay.end(true); } catch (err) { /* gone */ }
+    relay = window.mqtt.connect(url, { clientId: 'walnut-ph-' + cid + '-' + brokerIdx, reconnectPeriod: 0, connectTimeout: 8000, clean: true });
+    const inbox = `walnut-bg/${room}/to/${cid}`, outbox = `walnut-bg/${room}/tv`;
+    const pub = (m) => relay && relay.connected && relay.publish(outbox, JSON.stringify({ ...m, seat, cid }));
+    relay.on('connect', () => {
+      if (my !== attempt) return;
+      relay.subscribe(inbox, () => pub({ type: 'hello' }));
+      // Wait for the TV's first reply; if it never comes, try the next broker.
+      stageTimer = setTimeout(() => { if (my === attempt && !link) { brokerIdx++; tryRelay(); } }, 6000);
+    });
+    relay.on('message', (topic, payload) => {
+      if (my !== attempt || topic !== inbox) return;
+      let m;
+      try { m = JSON.parse(payload.toString()); } catch (err) { return; }
+      lastHeard = performance.now();
+      if (!link) {
+        clearTimeout(stageTimer);
+        link = { kind: 'relay', send: pub };
+        retries = 0;
+        setConn('Connected via relay', 'ok');
+        clearInterval(pingTimer);
+        pingTimer = setInterval(() => pub({ type: 'ping' }), 4000);
+      }
+      onMessage(m);
+    });
+    relay.on('error', () => { if (my === attempt && !link) { clearTimeout(stageTimer); brokerIdx++; setTimeout(() => { if (my === attempt && !link) tryRelay(); }, 800); } });
+    relay.on('close', () => { if (my === attempt && link && link.kind === 'relay') { setConn('Lost the TV. Reconnecting…', 'bad'); retry(); } });
   }
   function retry() {
     clearTimeout(retryTimer);
     retries++;
     retryTimer = setTimeout(connect, Math.min(8000, 1500 * retries));
   }
-  const send = (msg) => { if (conn && conn.open) conn.send(msg); };
+  // The TV sends its state at least every 4 seconds; long silence means the link died.
+  setInterval(() => { if (link && performance.now() - lastHeard > 13000) { setConn('Lost the TV. Reconnecting…', 'bad'); connect(); } }, 3000);
+  const send = (msg) => { if (link) link.send(msg); };
   const buzz = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (err) { /* not supported */ } };
   let wakeLock = null;
   async function keepAwake() {
     try { if (!wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (err) { /* refused */ }
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { keepAwake(); if (!conn || !conn.open) connect(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { keepAwake(); if (!link) connect(); } });
   document.addEventListener('pointerdown', keepAwake, { once: true });
 
   /* ---------- buttons ---------- */
@@ -215,7 +274,7 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
   /* ---------- incoming state ---------- */
   function onMessage(msg) {
     if (!msg || typeof msg !== 'object') return;
-    if (msg.type === 'replaced') { setConn('Another phone took this seat', 'bad'); clearTimeout(retryTimer); try { peer.destroy(); } catch (err) { /* gone */ } return; }
+    if (msg.type === 'replaced') { setConn('Another phone took this seat', 'bad'); attempt++; teardown(); return; }
     if (msg.type !== 'state') return;
     const prev = last;
     last = msg;

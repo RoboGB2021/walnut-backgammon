@@ -86,10 +86,13 @@ network connection.
   work on their own turn and buzz when it starts. A Black phone joining switches
   the game to two players. Without a camera, open `controller.html` and type the
   six-letter code shown on the TV.
-  - The phone and the game connect directly over WebRTC. The free
-    [PeerJS](https://peerjs.com) service introduces them, and if your network
-    blocks a direct link it also relays the game data. This only works from the
-    GitHub Pages copy, not from inside an embedded frame.
+  - The phone first tries a direct WebRTC link to the game, introduced by the
+    free [PeerJS](https://peerjs.com) service. If that hasn't connected within
+    about 7 seconds, it falls back to a relay through a free public MQTT
+    broker (EMQX, then HiveMQ, then Mosquitto). The relay works on any Wi-Fi or
+    mobile data. The phone's status shows "Connected" or "Connected via relay".
+    Phones only work from the GitHub Pages copy, not from inside an embedded
+    frame.
 
 ## Controls
 

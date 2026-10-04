@@ -2794,7 +2794,10 @@ function trackFps(dt) {
  * ------------------------------------------------------------------ */
 const PEER_SRC = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
 const QR_SRC = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
-const phones = { peer: null, room: null, ready: false, starting: false, error: null, seats: { w: null, b: null }, lastSent: '', lastPush: 0, idTries: 0 };
+const MQTT_SRC = 'https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js';
+// Public MQTT brokers used as a relay when a direct WebRTC link can't be made. The TV listens on all of them.
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+const phones = { peer: null, room: null, ready: false, starting: false, error: null, seats: { w: null, b: null }, lastSent: '', lastPush: 0, lastBeat: 0, idTries: 0, relays: [], relayConns: new Map() };
 const PUBLIC_URL = 'https://robogb2021.github.io/walnut-backgammon/';
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -2821,12 +2824,18 @@ async function startPhones() {
   if (phones.peer || phones.starting) return;
   phones.starting = true; phones.error = null;
   renderPhones();
-  try { await Promise.all([loadScript(PEER_SRC), loadScript(QR_SRC)]); }
-  catch (err) { phones.starting = false; phones.error = 'blocked'; renderPhones(); return; }
+  const [peerOk, qrOk, mqttOk] = (await Promise.allSettled([loadScript(PEER_SRC), loadScript(QR_SRC), loadScript(MQTT_SRC)])).map((r) => r.status === 'fulfilled');
+  if (!qrOk || (!peerOk && !mqttOk)) { phones.starting = false; phones.error = 'blocked'; renderPhones(); return; }
+  phones.room = tableId();
+  if (mqttOk) startRelays();
+  if (!peerOk) return;
   const open = (id) => {
     const peer = new window.Peer(id, { debug: 0 });
     phones.peer = peer;
-    peer.on('open', (pid) => { phones.room = pid; phones.ready = true; phones.starting = false; phones.error = null; renderPhones(); });
+    peer.on('open', (pid) => {
+      if (pid !== phones.room) { phones.room = pid; subscribeRelays(); }
+      phones.ready = true; phones.starting = false; phones.error = null; renderPhones();
+    });
     peer.on('connection', attachPhone);
     peer.on('disconnected', () => setTimeout(() => { if (!peer.destroyed) try { peer.reconnect(); } catch (err) { /* will retry */ } }, 1500));
     peer.on('error', (err) => {
@@ -2840,6 +2849,43 @@ async function startPhones() {
   };
   open(tableId());
   setTimeout(() => { if (!phones.ready && !phones.error && phones.idTries === 0) { phones.error = 'network'; phones.starting = false; renderPhones(); } }, 15000);
+}
+// A phone reached over the relay looks just like a WebRTC connection to the rest of the code.
+class RelayConn {
+  constructor(client, cid) { this.client = client; this.cid = cid; this.open = true; this.handlers = {}; this.lastSeen = performance.now(); this.relay = true; }
+  on(ev, fn) { (this.handlers[ev] ||= []).push(fn); return this; }
+  emit(ev, ...args) { (this.handlers[ev] || []).forEach((fn) => fn(...args)); }
+  send(msg) { if (this.open) this.client.publish(`walnut-bg/${phones.room}/to/${this.cid}`, JSON.stringify(msg)); }
+  close() { if (!this.open) return; this.open = false; phones.relayConns.delete(this.cid); this.emit('close'); }
+}
+function subscribeRelays() { for (const c of phones.relays) if (c.connected) c.subscribe(`walnut-bg/${phones.room}/tv`); }
+function startRelays() {
+  for (const url of BROKERS) {
+    let client;
+    try { client = window.mqtt.connect(url, { clientId: 'walnut-tv-' + Math.random().toString(36).slice(2, 10), reconnectPeriod: 5000, connectTimeout: 10000, clean: true }); }
+    catch (err) { continue; }
+    phones.relays.push(client);
+    client.on('connect', () => {
+      client.subscribe(`walnut-bg/${phones.room}/tv`);
+      if (!phones.ready) { phones.ready = true; phones.starting = false; phones.error = null; renderPhones(); }
+    });
+    client.on('error', () => { /* the client retries on its own; other brokers keep working */ });
+    client.on('message', (topic, payload) => {
+      if (topic !== `walnut-bg/${phones.room}/tv`) return;
+      let msg;
+      try { msg = JSON.parse(payload.toString()); } catch (err) { return; }
+      if (!msg || typeof msg.cid !== 'string') return;
+      let c = phones.relayConns.get(msg.cid);
+      if (!c) {
+        if (msg.type !== 'hello') return;
+        c = new RelayConn(client, msg.cid);
+        phones.relayConns.set(msg.cid, c);
+        attachPhone(c);
+      }
+      c.lastSeen = performance.now();
+      if (msg.type !== 'ping') c.emit('data', msg);
+    });
+  }
 }
 function attachPhone(conn) {
   conn.on('data', (msg) => {
@@ -2918,8 +2964,10 @@ function phoneSnapshot() {
 function pushPhones(now) {
   if (!phones.ready || (!phones.seats.w && !phones.seats.b) || now - phones.lastPush < 120) return;
   phones.lastPush = now;
+  for (const c of [...phones.relayConns.values()]) if (now - c.lastSeen > 15000) c.close(); // phone went quiet
   const snap = phoneSnapshot(), json = JSON.stringify(snap);
-  if (json === phones.lastSent) return;
+  if (json === phones.lastSent && now - phones.lastBeat < 4000) return; // resend every 4 s as a heartbeat
+  phones.lastBeat = now;
   phones.lastSent = json;
   for (const c of [phones.seats.w, phones.seats.b]) if (c && c.open) { try { c.send(snap); } catch (err) { /* dropped; next push retries */ } }
 }
