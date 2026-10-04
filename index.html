@@ -223,6 +223,7 @@ html.tv.idle, html.tv.idle * { cursor: none !important; }
 html.tv .phones h2 { font-size: 32px; }
 html.tv .phones p { font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .phones { animation: none; } }
+.build { font: 500 10.5px var(--font-mono); letter-spacing: 0.04em; color: var(--ink-dim); margin-left: 6px; vertical-align: 2px; }
 .fatal { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gutter); text-align: center; color: var(--ink-dim); }
 
 @media (max-width: 640px), (max-height: 560px) {
@@ -258,7 +259,7 @@ html.tv .phones p { font-size: 18px; }
 
 <header class="bar top">
   <section class="panel status-panel">
-    <p class="eyebrow">Backgammon</p>
+    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 12</span></p>
     <p id="status" class="status" aria-live="polite">Throw one die each to decide who moves first.</p>
     <p id="sub" class="sub">Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.</p>
   </section>
