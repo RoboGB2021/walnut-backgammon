@@ -1,0 +1,1440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Walnut Backgammon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Marcellus+SC&display=swap">
+<style>
+/* Layout: full-bleed 3D table under lamplight; HUD floats in the corners like brass plaques on the frame. */
+:root {
+  color-scheme: dark;
+  --bg: #120e0b;
+  --panel: rgba(22, 16, 12, 0.8);
+  --panel-edge: rgba(201, 163, 92, 0.22);
+  --ink: #f0e6d2;
+  --ink-dim: #b5a68c;
+  --brass: #c9a35c;
+  --brass-ink: #1b140c;
+  --oxblood: #8c2f2b;
+  --line: rgba(240, 230, 210, 0.14);
+  --font-display: "Marcellus SC", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --gutter: 16px;
+}
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); overflow: hidden; }
+body { font: 14px/1.45 var(--font-body); -webkit-font-smoothing: antialiased; }
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+#scene.can-pick { cursor: pointer; }
+
+.bar { position: fixed; left: var(--gutter); right: var(--gutter); display: flex; gap: 12px; pointer-events: none; }
+.bar > * { pointer-events: auto; }
+.top { top: calc(env(safe-area-inset-top, 0px) + var(--gutter)); justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+.bottom { bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter)); justify-content: center; align-items: center; flex-wrap: wrap; }
+
+.panel { background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 10px; padding: 12px 14px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); min-width: 0; }
+.status-panel { max-width: 26rem; display: grid; gap: 4px; }
+.eyebrow { margin: 0; font: 15px/1 var(--font-display); letter-spacing: 0.14em; color: var(--brass); }
+.status { margin: 0; font-size: 17px; font-weight: 600; text-wrap: balance; }
+.sub { margin: 0; color: var(--ink-dim); font-size: 12.5px; }
+
+.table-panel { display: grid; gap: 10px; }
+.scores { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.scores th, .scores td { padding: 3px 8px; text-align: right; font-weight: 500; }
+.scores thead th { font: 10.5px/1.2 var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-dim); }
+.scores tbody th { text-align: left; font-weight: 600; white-space: nowrap; }
+.scores td { font-family: var(--font-mono); font-size: 13px; }
+.scores tr.turn th { color: var(--brass); }
+.scores tr.turn th::after { content: " \25C2"; color: var(--brass); }
+.swatch { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; border: 1px solid var(--line); }
+.swatch.w { background: #ece2cc; }
+.swatch.b { background: #221d1a; border-color: rgba(240, 230, 210, 0.35); }
+
+.settings { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { font: 500 12.5px var(--font-body); color: var(--ink-dim); background: transparent; border: 0; padding: 7px 10px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: rgba(201, 163, 92, 0.18); color: var(--ink); }
+
+.btn { font: 600 14px var(--font-body); color: var(--ink); background: rgba(240, 230, 210, 0.06); border: 1px solid var(--line); border-radius: 7px; padding: 11px 18px; cursor: pointer; transition: background 0.15s, opacity 0.15s, transform 0.08s; }
+.btn:hover:not(:disabled) { background: rgba(240, 230, 210, 0.12); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.38; cursor: default; }
+.btn.small { font-size: 12.5px; padding: 7px 10px; }
+.btn.primary { background: var(--brass); color: var(--brass-ink); border-color: transparent; min-width: 9.5rem; }
+.btn.primary:hover:not(:disabled) { background: #d6b26b; }
+.bottom .btn { background-color: var(--panel); }
+.bottom .btn.primary { background: var(--brass); }
+button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.chips { display: flex; gap: 6px; padding: 7px 10px; background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 9px; min-height: 34px; align-items: center; }
+.chips:empty { display: none; }
+.chip { width: 30px; height: 30px; display: block; transition: opacity 0.2s; }
+.chip.used { opacity: 0.25; }
+
+.toast { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -6px); background: var(--panel); border: 1px solid var(--panel-edge); color: var(--ink); padding: 10px 16px; border-radius: 9px; font-weight: 600; opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none; max-width: calc(100% - 2 * var(--gutter)); text-align: center; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.fatal { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gutter); text-align: center; color: var(--ink-dim); }
+
+@media (max-width: 640px), (max-height: 560px) {
+  .top { gap: 8px; }
+  .panel { padding: 8px 10px; }
+  .status-panel { max-width: none; flex: 1 1 100%; gap: 2px; }
+  .status { font-size: 14.5px; }
+  .eyebrow, .sub, .scores thead { display: none; }
+  .table-panel { flex: 1 1 100%; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+  .scores th, .scores td { padding: 1px 6px; }
+  .settings { justify-content: flex-end; }
+  .btn { padding: 9px 13px; }
+  .btn.primary { min-width: 0; }
+  .chips { padding: 5px 8px; min-height: 28px; }
+  .chip { width: 24px; height: 24px; }
+}
+@media (min-width: 700px) and (max-height: 560px) {
+  .top { flex-wrap: nowrap; }
+  .status-panel { flex: 1 1 180px; }
+  .table-panel { flex: 0 0 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast, .btn, .chip { transition: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="Backgammon board"></canvas>
+
+<header class="bar top">
+  <section class="panel status-panel">
+    <p class="eyebrow">Backgammon</p>
+    <p id="status" class="status" aria-live="polite">Throw one die each to decide who moves first.</p>
+    <p id="sub" class="sub">Click a glowing checker, then a lit point. Space rolls, U undoes. Drag to orbit.</p>
+  </section>
+  <section class="panel table-panel">
+    <table class="scores">
+      <thead><tr><th scope="col"><span class="sr">Player</span></th><th scope="col">Pips</th><th scope="col">Off</th><th scope="col">Score</th></tr></thead>
+      <tbody>
+        <tr id="rowW"><th scope="row"><span class="swatch w"></span><span id="nameW">You</span></th><td id="pipW">167</td><td id="offW">0</td><td id="scoreW">0</td></tr>
+        <tr id="rowB"><th scope="row"><span class="swatch b"></span><span id="nameB">Computer</span></th><td id="pipB">167</td><td id="offB">0</td><td id="scoreB">0</td></tr>
+      </tbody>
+    </table>
+    <div class="settings">
+      <div class="seg" role="group" aria-label="Opponent">
+        <button id="modeAi" type="button" aria-pressed="true">vs Computer</button>
+        <button id="modePvp" type="button" aria-pressed="false">Two players</button>
+      </div>
+      <button id="soundBtn" type="button" class="btn small" aria-pressed="true">Sound on</button>
+      <button id="newBtn" type="button" class="btn small">New game</button>
+    </div>
+  </section>
+</header>
+
+<footer class="bar bottom">
+  <div id="chips" class="chips" aria-label="Dice to play"></div>
+  <button id="undoBtn" type="button" class="btn" disabled>Undo</button>
+  <button id="primaryBtn" type="button" class="btn primary">Throw for first move</button>
+</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import * as CANNON from 'cannon-es';
+
+/* ------------------------------------------------------------------ *
+ *  Dimensions (1 unit ≈ 4 cm). White moves 24 → 1, home board 1–6.   *
+ * ------------------------------------------------------------------ */
+const W = 1, B = -1;
+const R = 0.45, H = 0.2, S = 0.92;            // checker radius, thickness, stack spacing
+const HX = 6.5, HZ = 5.5;                      // half extents of the playing field
+const FH = 0.5, FT = 0.6;                      // frame height and thickness
+const TRAY_X0 = HX + FT, TRAY_X1 = TRAY_X0 + 1.2, OUTER_X = TRAY_X1 + FT, LEFT_X = -HX - FT;
+const TRAY_X = (TRAY_X0 + TRAY_X1) / 2;
+const D = 0.42;                                // die edge
+const GRAV = 38;                               // scaled gravity for the 4 cm unit
+
+const $ = (id) => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+let seed = 11;
+const srand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+/* ------------------------------------------------------------------ *
+ *  Sound: everything is synthesised with Web Audio — filtered noise   *
+ *  transients plus inharmonic modal partials, through a small room.   *
+ * ------------------------------------------------------------------ */
+const Snd = {
+  ctx: null, on: true, voices: [],
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = (this.ctx = new AC());
+    this.master = ctx.createGain();
+    this.master.gain.value = this.on ? 0.9 : 0;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.002; comp.release.value = 0.15;
+    this.master.connect(comp).connect(ctx.destination);
+    this.bus = ctx.createGain();
+    this.bus.connect(this.master);
+    const verb = ctx.createConvolver();
+    verb.buffer = this.impulse(1.3);
+    const wet = ctx.createGain(); wet.gain.value = 0.2;
+    this.bus.connect(wet).connect(verb).connect(this.master);
+    const len = ctx.sampleRate * 2;
+    this.noise = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  },
+  impulse(sec) {
+    const ctx = this.ctx, rate = ctx.sampleRate, len = Math.floor(rate * sec);
+    const buf = ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.4) * 0.6;
+      for (let k = 0; k < 9; k++) {
+        const idx = Math.floor(rate * (0.006 + k * 0.0067 + Math.random() * 0.003));
+        if (idx < len) d[idx] += (Math.random() < 0.5 ? -1 : 1) * 0.7 * Math.pow(0.78, k);
+      }
+    }
+    return buf;
+  },
+  setOn(v) {
+    this.on = v;
+    if (this.master) this.master.gain.setTargetAtTime(v ? 0.9 : 0, this.ctx.currentTime, 0.02);
+  },
+  ready() { return this.ctx && this.on && this.ctx.state === 'running'; },
+  out(pan) {
+    const p = this.ctx.createStereoPanner();
+    p.pan.value = clamp(pan, -1, 1);
+    p.connect(this.bus);
+    return p;
+  },
+  burst(t, { type = 'bandpass', freq = 1000, q = 1, dur = 0.05, gain = 0.5, attack = 0.0015, pan = 0 }) {
+    const ctx = this.ctx, s = ctx.createBufferSource();
+    s.buffer = this.noise;
+    s.playbackRate.value = rand(0.85, 1.15);
+    const f = ctx.createBiquadFilter();
+    f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + attack + dur);
+    s.connect(f).connect(g).connect(this.out(pan));
+    s.start(t, Math.random() * 1.5);
+    s.stop(t + attack + dur + 0.05);
+  },
+  modes(t, freqs, { gain = 0.2, decay = 0.08, pan = 0 }) {
+    const ctx = this.ctx, o = this.out(pan);
+    freqs.forEach((fr, i) => {
+      const osc = ctx.createOscillator();
+      osc.frequency.value = fr * rand(0.96, 1.04);
+      const g = ctx.createGain();
+      const a = gain / (1 + i * 0.55), dc = decay / (1 + i * 0.3);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(a, t + 0.001);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dc);
+      osc.connect(g).connect(o);
+      osc.start(t);
+      osc.stop(t + dc + 0.02);
+    });
+  },
+  // The hollow walnut case answers every hit with a short low resonance.
+  body(t, g, pan) { this.modes(t, [118 + rand(-8, 8), 196, 287], { gain: g * 0.22, decay: 0.16, pan }); },
+
+  dice(v, surface, x) {
+    if (!this.ready()) return;
+    const g = Math.pow(clamp((v - 0.35) / 10, 0, 1), 1.2);
+    if (g < 0.01) return;
+    const t = this.ctx.currentTime, pan = x / 9;
+    if (surface === 'felt') {
+      this.burst(t, { type: 'lowpass', freq: 700 + 900 * g, q: 0.7, dur: 0.045, gain: g * 0.75, pan });
+      this.burst(t, { type: 'bandpass', freq: 2400, q: 2, dur: 0.01, gain: g * 0.18, pan });
+      this.body(t, g * 0.7, pan);
+    } else if (surface === 'wood') {
+      this.burst(t, { type: 'bandpass', freq: rand(2400, 3200), q: 1.6, dur: 0.028, gain: g * 0.8, pan });
+      this.modes(t, [1850, 3040, 4420], { gain: g * 0.22, decay: 0.07, pan });
+      this.body(t, g * 1.2, pan);
+    } else if (surface === 'die') {
+      this.burst(t, { type: 'highpass', freq: 3200, q: 0.8, dur: 0.014, gain: g * 0.6, pan });
+      this.modes(t, [3900, 5650, 7300], { gain: g * 0.16, decay: 0.035, pan });
+    } else {
+      this.burst(t, { type: 'bandpass', freq: 2100, q: 1.4, dur: 0.02, gain: g * 0.6, pan });
+      this.modes(t, [1500, 2580, 3700], { gain: g * 0.18, decay: 0.05, pan });
+    }
+  },
+  checker(v, surface, x) {
+    if (!this.ready()) return;
+    const g = Math.pow(clamp(v / 5.5, 0, 1), 1.1);
+    if (g < 0.02) return;
+    const t = this.ctx.currentTime, pan = x / 9;
+    if (surface === 'checker') {
+      this.burst(t, { type: 'bandpass', freq: rand(1600, 2000), q: 1.3, dur: 0.024, gain: g * 0.85, pan });
+      this.modes(t, [1180, 1960, 2980, 4150], { gain: g * 0.26, decay: 0.075, pan });
+      this.modes(t, [310], { gain: g * 0.12, decay: 0.05, pan });
+    } else if (surface === 'wood') {
+      this.burst(t, { type: 'bandpass', freq: 1400, q: 1.2, dur: 0.03, gain: g * 0.75, pan });
+      this.modes(t, [620, 1130, 1720], { gain: g * 0.25, decay: 0.09, pan });
+      this.body(t, g, pan);
+    } else {
+      this.burst(t, { type: 'lowpass', freq: 650, q: 0.8, dur: 0.06, gain: g * 0.9, pan });
+      this.modes(t, [430, 780], { gain: g * 0.2, decay: 0.05, pan });
+      this.body(t, g * 1.1, pan);
+    }
+  },
+  pickup(x) {
+    if (!this.ready()) return;
+    const t = this.ctx.currentTime, pan = x / 9;
+    this.burst(t, { type: 'bandpass', freq: 1500, q: 0.9, dur: 0.05, gain: 0.08, attack: 0.008, pan });
+    this.modes(t, [1600, 2550], { gain: 0.035, decay: 0.05, pan });
+  },
+  // Two dice rattling inside a leather cup, then the release.
+  shake(dur) {
+    if (!this.ready()) return;
+    const t0 = this.ctx.currentTime;
+    for (let k = 0; k < dur * 7.5; k++) {
+      this.burst(t0 + k / 7.5, { type: 'lowpass', freq: 600, q: 0.6, dur: 0.08, gain: 0.07, attack: 0.02 });
+    }
+    for (let i = 0; i < dur * 46; i++) {
+      const t = t0 + Math.random() * dur;
+      this.burst(t, { type: 'highpass', freq: rand(2400, 4000), q: 0.7, dur: 0.012, gain: rand(0.04, 0.13) });
+      if (Math.random() < 0.5) this.modes(t, [3700, 5300, 7000], { gain: rand(0.02, 0.05), decay: 0.025 });
+      if (Math.random() < 0.3) this.burst(t, { type: 'lowpass', freq: 380, q: 0.8, dur: 0.05, gain: 0.16 });
+    }
+  },
+  toss() {
+    if (!this.ready()) return;
+    const ctx = this.ctx, t = ctx.currentTime, s = ctx.createBufferSource();
+    s.buffer = this.noise;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.Q.value = 1.2;
+    f.frequency.setValueAtTime(500, t);
+    f.frequency.exponentialRampToValueAtTime(1800, t + 0.16);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.07, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    s.connect(f).connect(g).connect(this.bus);
+    s.start(t);
+    s.stop(t + 0.25);
+  },
+  // Continuous rolling noise for a die tumbling across the felt.
+  roll(i, speed, contact, x) {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    let v = this.voices[i];
+    if (!v) {
+      const ctx = this.ctx, s = ctx.createBufferSource();
+      s.buffer = this.noise; s.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 0.9;
+      const g = ctx.createGain(); g.gain.value = 0;
+      const p = ctx.createStereoPanner();
+      s.connect(f).connect(g).connect(p).connect(this.bus);
+      s.start();
+      v = this.voices[i] = { f, g, p };
+    }
+    const t = this.ctx.currentTime;
+    const target = contact ? Math.pow(clamp(speed / 10, 0, 1), 1.6) * 0.22 : 0;
+    v.g.gain.setTargetAtTime(target, t, 0.025);
+    v.f.frequency.setTargetAtTime(380 + speed * 70, t, 0.05);
+    v.p.pan.setTargetAtTime(clamp(x / 9, -1, 1), t, 0.05);
+  },
+};
+
+/* ------------------------------------------------------------------ *
+ *  Rules engine. pts[1..24]: +n white checkers, −n black checkers.    *
+ * ------------------------------------------------------------------ */
+const sideKey = (pl) => (pl === W ? 'w' : 'b');
+const toAbs = (pl, q) => (pl === W ? q : 25 - q);
+const cloneState = (s) => ({ pts: s.pts.slice(), bar: { ...s.bar }, off: { ...s.off } });
+const keyOf = (s) => s.pts.join(',') + '|' + s.bar.w + s.bar.b + '|' + s.off.w + ',' + s.off.b;
+
+function initialState() {
+  const pts = new Array(25).fill(0);
+  pts[24] = 2; pts[13] = 5; pts[8] = 3; pts[6] = 5;
+  pts[1] = -2; pts[12] = -5; pts[17] = -3; pts[19] = -5;
+  return { pts, bar: { w: 0, b: 0 }, off: { w: 0, b: 0 } };
+}
+function allHome(s, pl) {
+  if (s.bar[sideKey(pl)]) return false;
+  for (let q = 7; q <= 24; q++) if (s.pts[toAbs(pl, q)] * pl > 0) return false;
+  return true;
+}
+function singleMoves(s, pl, d) {
+  const res = [];
+  const target = (q) => {
+    const a = toAbs(pl, q), c = s.pts[a] * pl;
+    return c <= -2 ? null : { to: a, hit: c === -1 };
+  };
+  if (s.bar[sideKey(pl)] > 0) {
+    const t = target(25 - d);
+    if (t) res.push({ from: 'bar', to: t.to, die: d, hit: t.hit });
+    return res;
+  }
+  const home = allHome(s, pl);
+  for (let q = 24; q >= 1; q--) {
+    const a = toAbs(pl, q);
+    if (s.pts[a] * pl <= 0) continue;
+    const nq = q - d;
+    if (nq >= 1) {
+      const t = target(nq);
+      if (t) res.push({ from: a, to: t.to, die: d, hit: t.hit });
+    } else if (home) {
+      let higher = false;
+      if (nq < 0) for (let q2 = q + 1; q2 <= 6; q2++) if (s.pts[toAbs(pl, q2)] * pl > 0) { higher = true; break; }
+      if (!higher) res.push({ from: a, to: 'off', die: d, hit: false });
+    }
+  }
+  return res;
+}
+function applyMove(s, pl, m) {
+  const n = cloneState(s), k = sideKey(pl), ok = sideKey(-pl);
+  if (m.from === 'bar') n.bar[k]--; else n.pts[m.from] -= pl;
+  if (m.to === 'off') n.off[k]++;
+  else {
+    if (m.hit) { n.pts[m.to] = 0; n.bar[ok]++; }
+    n.pts[m.to] += pl;
+  }
+  return n;
+}
+const remKey = (r) => r.slice().sort().join('');
+function maxLen(s, pl, rem, memo) {
+  if (!rem.length) return 0;
+  const k = keyOf(s) + '#' + remKey(rem);
+  if (memo.has(k)) return memo.get(k);
+  let best = 0;
+  const tried = new Set();
+  outer: for (let i = 0; i < rem.length; i++) {
+    const d = rem[i];
+    if (tried.has(d)) continue;
+    tried.add(d);
+    const r2 = rem.slice(); r2.splice(i, 1);
+    for (const m of singleMoves(s, pl, d)) {
+      best = Math.max(best, 1 + maxLen(applyMove(s, pl, m), pl, r2, memo));
+      if (best === rem.length) break outer;
+    }
+  }
+  memo.set(k, best);
+  return best;
+}
+// Legal next moves: must play as many dice as possible, and the larger die if only one can be played.
+function legalMoves(s, pl, rem) {
+  const memo = new Map(), ml = maxLen(s, pl, rem, memo);
+  if (!ml) return [];
+  let res = [];
+  const tried = new Set();
+  for (let i = 0; i < rem.length; i++) {
+    const d = rem[i];
+    if (tried.has(d)) continue;
+    tried.add(d);
+    const r2 = rem.slice(); r2.splice(i, 1);
+    for (const m of singleMoves(s, pl, d)) if (1 + maxLen(applyMove(s, pl, m), pl, r2, memo) === ml) res.push(m);
+  }
+  if (ml === 1 && rem.length === 2 && rem[0] !== rem[1]) {
+    const hi = Math.max(...rem);
+    if (res.some((m) => m.die === hi)) res = res.filter((m) => m.die === hi);
+  }
+  return res;
+}
+// Every destination one checker can reach this turn, including combined dice.
+function reachFrom(s, pl, rem, src) {
+  const out = new Map();
+  const rec = (st, r, from, path) => {
+    for (const m of legalMoves(st, pl, r)) {
+      if (m.from !== from) continue;
+      const p2 = path.concat([m]), prev = out.get(m.to);
+      if (!prev || prev.length > p2.length || (prev.length === p2.length && prev[prev.length - 1].die > m.die)) out.set(m.to, p2);
+      if (m.to !== 'off') {
+        const r2 = r.slice(); r2.splice(r2.indexOf(m.die), 1);
+        if (r2.length) rec(applyMove(st, pl, m), r2, m.to, p2);
+      }
+    }
+  };
+  rec(s, rem, src, []);
+  return out;
+}
+function allSequences(s, pl, rem) {
+  const memo = new Map(), ml = maxLen(s, pl, rem, memo);
+  if (!ml) return [];
+  const out = new Map(), seen = new Set();
+  const rec = (st, r, path) => {
+    if (path.length === ml) {
+      const k = keyOf(st), prev = out.get(k);
+      if (!prev || (ml === 1 && path[0].die > prev.moves[0].die)) out.set(k, { moves: path, state: st });
+      return;
+    }
+    const vk = keyOf(st) + '#' + remKey(r);
+    if (seen.has(vk)) return;
+    seen.add(vk);
+    const tried = new Set();
+    for (let i = 0; i < r.length; i++) {
+      const d = r[i];
+      if (tried.has(d)) continue;
+      tried.add(d);
+      const r2 = r.slice(); r2.splice(i, 1);
+      for (const m of singleMoves(st, pl, d)) {
+        const n = applyMove(st, pl, m);
+        if (1 + maxLen(n, pl, r2, memo) === ml - path.length) rec(n, r2, path.concat([m]));
+      }
+    }
+  };
+  rec(s, rem, []);
+  let res = [...out.values()];
+  if (ml === 1 && rem.length === 2 && rem[0] !== rem[1]) {
+    const hi = Math.max(...rem);
+    if (res.some((x) => x.moves[0].die === hi)) res = res.filter((x) => x.moves[0].die === hi);
+  }
+  return res;
+}
+function pipCount(s, pl) {
+  let t = 25 * s.bar[sideKey(pl)];
+  for (let p = 1; p <= 24; p++) { const c = s.pts[p] * pl; if (c > 0) t += c * (pl === W ? p : 25 - p); }
+  return t;
+}
+// Heuristic position evaluation for the computer player.
+function evaluate(s, pl) {
+  const mine = new Array(26).fill(0), theirs = new Array(26).fill(0);
+  for (let q = 1; q <= 24; q++) {
+    const c = s.pts[toAbs(pl, q)] * pl;
+    if (c > 0) mine[q] = c; else if (c < 0) theirs[q] = -c;
+  }
+  const myBar = s.bar[sideKey(pl)], opBar = s.bar[sideKey(-pl)], myOff = s.off[sideKey(pl)];
+  mine[25] = myBar; theirs[0] = opBar;
+  const myPip = pipCount(s, pl), opPip = pipCount(s, -pl);
+  let myBack = 0; for (let q = 25; q >= 1; q--) if (mine[q]) { myBack = q; break; }
+  let opBack = 25; for (let q = 0; q <= 24; q++) if (theirs[q]) { opBack = q; break; }
+  if (myBack <= opBack) {
+    let gaps = 0; for (let q = 1; q <= 6; q++) if (!mine[q]) gaps++;
+    return (opPip - myPip) + myOff * 4 - gaps * 0.3;
+  }
+  let score = (opPip - myPip) * 0.55 + myOff * 2;
+  for (let q = 1; q <= 24; q++) {
+    if (mine[q] === 1) {
+      let shots = 0;
+      for (let q2 = 0; q2 < q; q2++) if (theirs[q2]) { const d = q - q2; shots += d <= 6 ? 11 : d <= 12 ? 3 : 0; }
+      score -= (Math.min(shots, 30) / 36) * (7 + q * 0.45);
+    } else if (mine[q] >= 2) {
+      score += 1.2;
+      if (q <= 6) score += 2.2;
+      if (q >= 4 && q <= 8) score += 1.3;
+      if (mine[q] > 3) score -= (mine[q] - 3) * 0.6;
+    }
+  }
+  let run = 0, best = 0, homePts = 0;
+  for (let q = 1; q <= 24; q++) { if (mine[q] >= 2) { run++; best = Math.max(best, run); } else run = 0; }
+  for (let q = 1; q <= 6; q++) if (mine[q] >= 2) homePts++;
+  score += best * best * 0.6 + opBar * (5 + homePts * 1.5) - myBar * 6;
+  for (let q = 19; q <= 24; q++) score -= mine[q] * 0.35;
+  return score;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Renderer, scene, lights                                            *
+ * ------------------------------------------------------------------ */
+const canvas = $('scene');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+} catch (err) {
+  document.body.insertAdjacentHTML('beforeend', '<p class="fatal">This board needs WebGL, which this browser has turned off.</p>');
+  throw err;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0b09);
+scene.fog = new THREE.Fog(0x0f0b09, 34, 70);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 200);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0.9, 0, 0.5);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.minPolarAngle = 0.05;
+controls.maxPolarAngle = 1.25;
+controls.minDistance = 8;
+controls.maxDistance = 48;
+camera.position.set(0.9, 15, 12);
+
+scene.add(new THREE.HemisphereLight(0xffe6c4, 0x1a120c, 0.45));
+const lamp = new THREE.SpotLight(0xffdcae, 2.6, 0, 0.62, 0.55, 0);
+lamp.position.set(2.5, 17, 7);
+lamp.target.position.set(0.9, 0, 0);
+lamp.castShadow = true;
+lamp.shadow.mapSize.set(2048, 2048);
+lamp.shadow.bias = -0.0004;
+lamp.shadow.normalBias = 0.02;
+lamp.shadow.camera.near = 6;
+lamp.shadow.camera.far = 32;
+scene.add(lamp, lamp.target);
+const fill = new THREE.DirectionalLight(0x9fb4d6, 0.25);
+fill.position.set(-10, 8, -6);
+scene.add(fill);
+
+let viewPortrait = null;
+function fitView() {
+  const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  // On a tall screen, look along the board so its long side runs down the screen.
+  const portrait = camera.aspect < 0.85;
+  const vf = THREE.MathUtils.degToRad(camera.fov) / 2, hf = Math.atan(Math.tan(vf) * camera.aspect);
+  const [halfW, halfH] = portrait ? [6.8, 9.8] : [9.6, 8.2];
+  const d = Math.max(halfW / Math.tan(hf), halfH / Math.tan(vf)) + 1.5;
+  let dir;
+  if (portrait !== viewPortrait) {
+    viewPortrait = portrait;
+    const polar = portrait ? 0.42 : 0.68;
+    dir = portrait ? new THREE.Vector3(Math.sin(polar), Math.cos(polar), 0) : new THREE.Vector3(0, Math.cos(polar), Math.sin(polar));
+  } else dir = camera.position.clone().sub(controls.target).normalize();
+  camera.position.copy(controls.target).addScaledVector(dir, d);
+  controls.maxDistance = Math.max(48, d * 1.4);
+  scene.fog.near = d * 1.6; scene.fog.far = d * 3.5;
+}
+window.addEventListener('resize', fitView);
+
+/* ------------------------------------------------------------------ *
+ *  Procedural textures                                                *
+ * ------------------------------------------------------------------ */
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function canvasTex(w, h, draw, { repeat = [1, 1], srgb = true, rotate = 0 } = {}) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat[0], repeat[1]);
+  t.anisotropy = maxAniso;
+  if (rotate) { t.center.set(0.5, 0.5); t.rotation = rotate; }
+  return t;
+}
+function woodDraw(base, dark, light) {
+  return (g, w, h) => {
+    g.fillStyle = base; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 300; i++) {
+      const y = srand() * h, amp = srand() * 7, freq = srand() * 0.012 + 0.003, ph = srand() * 6.28;
+      g.strokeStyle = srand() < 0.6 ? dark : light;
+      g.globalAlpha = srand() * 0.32 + 0.05;
+      g.lineWidth = srand() * 2.4 + 0.4;
+      g.beginPath();
+      for (let x = 0; x <= w; x += 8) {
+        const yy = y + Math.sin(x * freq + ph) * amp + Math.sin(x * 0.043 + ph * 2) * amp * 0.25;
+        if (x) g.lineTo(x, yy); else g.moveTo(x, yy);
+      }
+      g.stroke();
+    }
+    g.globalAlpha = 0.22;
+    g.fillStyle = dark;
+    for (let i = 0; i < 5000; i++) g.fillRect(srand() * w, srand() * h, srand() * 3 + 1, 1);
+    g.globalAlpha = 1;
+  };
+}
+const walnut = woodDraw('#5b3a23', '#2c190e', '#7d5435');
+const woodTexX = canvasTex(1024, 256, walnut);
+const woodTexZ = canvasTex(1024, 256, walnut, { rotate: Math.PI / 2 });
+const tableTex = canvasTex(1024, 512, woodDraw('#2b1b12', '#130b07', '#3d281b'), { repeat: [2, 2] });
+function noiseTex(r, g0, b0, amt, repeat) {
+  return canvasTex(256, 256, (g, w, h) => {
+    const img = g.createImageData(w, h);
+    for (let i = 0; i < w * h; i++) {
+      const n = srand() * amt * 2 - amt;
+      img.data[i * 4] = r + n * 0.7; img.data[i * 4 + 1] = g0 + n; img.data[i * 4 + 2] = b0 + n * 0.85; img.data[i * 4 + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }, { repeat });
+}
+const feltTex = noiseTex(30, 62, 54, 14, [7, 6]);
+const linenTex = noiseTex(200, 200, 200, 26, [2, 2]);
+
+const woodMatX = new THREE.MeshPhysicalMaterial({ map: woodTexX, roughness: 0.42, clearcoat: 0.55, clearcoatRoughness: 0.28, envMapIntensity: 0.4 });
+const woodMatZ = woodMatX.clone(); woodMatZ.map = woodTexZ;
+const feltMat = new THREE.MeshStandardMaterial({ map: feltTex, roughness: 1, envMapIntensity: 0.15 });
+const brassMat = new THREE.MeshStandardMaterial({ color: 0xc9a35c, metalness: 1, roughness: 0.32, envMapIntensity: 1 });
+
+/* ------------------------------------------------------------------ *
+ *  Physics world                                                      *
+ * ------------------------------------------------------------------ */
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -GRAV, 0) });
+world.solver.iterations = 14;
+const mFelt = new CANNON.Material('felt'), mWood = new CANNON.Material('wood');
+const mDie = new CANNON.Material('die'), mChk = new CANNON.Material('checker');
+const contact = (a, b, friction, restitution) => world.addContactMaterial(new CANNON.ContactMaterial(a, b, { friction, restitution }));
+contact(mDie, mFelt, 0.3, 0.28); contact(mDie, mWood, 0.2, 0.5); contact(mDie, mDie, 0.15, 0.45);
+contact(mDie, mChk, 0.2, 0.35); contact(mChk, mFelt, 0.6, 0.12); contact(mChk, mChk, 0.45, 0.18); contact(mChk, mWood, 0.5, 0.2);
+const GRP_BOARD = 1, GRP_DIE = 2, GRP_CHK = 4;
+
+function staticBox(x0, x1, y0, y1, z0, z1, mat, kind) {
+  const b = new CANNON.Body({ mass: 0, type: CANNON.Body.STATIC, material: mat, collisionFilterGroup: GRP_BOARD, collisionFilterMask: GRP_DIE | GRP_CHK });
+  b.addShape(new CANNON.Box(new CANNON.Vec3((x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2)));
+  b.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  b.kind = kind;
+  world.addBody(b);
+  return b;
+}
+function meshBox(x0, x1, y0, y1, z0, z1, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat);
+  m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+
+/* ------------------------------------------------------------------ *
+ *  The board                                                          *
+ * ------------------------------------------------------------------ */
+const ZO = HZ + FT;
+const table = new THREE.Mesh(new THREE.PlaneGeometry(80, 60), new THREE.MeshStandardMaterial({ map: tableTex, roughness: 0.7, envMapIntensity: 0.2 }));
+table.rotation.x = -Math.PI / 2; table.position.y = -0.36; table.receiveShadow = true;
+scene.add(table);
+meshBox(LEFT_X, OUTER_X, -0.36, -0.02, -ZO, ZO, woodMatX);
+for (const [x0, x1] of [[-HX, HX], [TRAY_X0, TRAY_X1]]) {
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 2 * HZ), feltMat);
+  f.rotation.x = -Math.PI / 2; f.position.set((x0 + x1) / 2, 0, 0); f.receiveShadow = true;
+  scene.add(f);
+}
+meshBox(LEFT_X, OUTER_X, -0.02, FH, HZ, ZO, woodMatX);
+meshBox(LEFT_X, OUTER_X, -0.02, FH, -ZO, -HZ, woodMatX);
+meshBox(LEFT_X, -HX, -0.02, FH, -HZ, HZ, woodMatZ);
+meshBox(HX, TRAY_X0, -0.02, FH, -HZ, HZ, woodMatZ);
+meshBox(TRAY_X1, OUTER_X, -0.02, FH, -HZ, HZ, woodMatZ);
+meshBox(TRAY_X0, TRAY_X1, 0, FH * 0.8, -0.3, 0.3, woodMatX);
+meshBox(-0.5, 0.5, 0, FH, -HZ, HZ, woodMatZ);
+for (const z of [-3.4, 3.4]) meshBox(-0.16, 0.16, FH, FH + 0.025, z - 0.55, z + 0.55, brassMat);
+
+staticBox(LEFT_X, OUTER_X, -0.5, 0, -ZO, ZO, mFelt, 'felt');
+staticBox(LEFT_X, -HX, 0, 6, -ZO, ZO, mWood, 'wood');           // tall invisible walls keep the dice on the board
+staticBox(HX, TRAY_X0, 0, 6, -ZO, ZO, mWood, 'wood');
+staticBox(LEFT_X, TRAY_X0, 0, 6, HZ, ZO, mWood, 'wood');
+staticBox(LEFT_X, TRAY_X0, 0, 6, -ZO, -HZ, mWood, 'wood');
+staticBox(TRAY_X0, OUTER_X, 0, FH, HZ, ZO, mWood, 'wood');
+staticBox(TRAY_X0, OUTER_X, 0, FH, -ZO, -HZ, mWood, 'wood');
+staticBox(TRAY_X1, OUTER_X, 0, FH, -HZ, HZ, mWood, 'wood');
+staticBox(TRAY_X0, TRAY_X1, 0, FH * 0.8, -0.3, 0.3, mWood, 'wood');
+staticBox(-0.5, 0.5, 0, FH, -HZ, HZ, mWood, 'wood');
+
+const colX = (c) => (c < 6 ? -6 + c : 1 + (c - 6));
+const pointCol = (p) => (p <= 12 ? 12 - p : p - 13);
+const POINT_LEN = 4.75;
+function triangleGeo(p) {
+  const bottom = p <= 12, x = colX(pointCol(p)), ze = bottom ? HZ : -HZ, za = bottom ? HZ - POINT_LEN : -HZ + POINT_LEN;
+  const verts = [x - 0.47, 0, ze, x + 0.47, 0, ze, x, 0, za];
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute([verts[0] / 2, verts[2] / 2, verts[3] / 2, verts[5] / 2, verts[6] / 2, verts[8] / 2], 2));
+  g.setIndex(bottom ? [0, 2, 1] : [0, 1, 2]);
+  g.computeVertexNormals();
+  return g;
+}
+const boneMat = new THREE.MeshStandardMaterial({ color: 0xe6d6b8, map: linenTex, roughness: 0.85, envMapIntensity: 0.2, side: THREE.DoubleSide });
+const bloodMat = new THREE.MeshStandardMaterial({ color: 0x8c2f2b, map: linenTex, roughness: 0.85, envMapIntensity: 0.2, side: THREE.DoubleSide });
+const overlays = {};
+for (let p = 1; p <= 24; p++) {
+  const c = pointCol(p), light = p <= 12 ? c % 2 === 0 : c % 2 === 1;
+  const geo = triangleGeo(p);
+  const tri = new THREE.Mesh(geo, light ? boneMat : bloodMat);
+  tri.position.y = 0.004; tri.receiveShadow = true;
+  scene.add(tri);
+  const ov = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+  ov.position.y = 0.008; ov.visible = false;
+  scene.add(ov);
+  overlays[p] = ov;
+}
+for (const s of [W, B]) {
+  const ov = new THREE.Mesh(new THREE.PlaneGeometry(1.1, HZ - 0.4), new THREE.MeshBasicMaterial({ color: 0xffd38a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  ov.rotation.x = -Math.PI / 2; ov.position.set(TRAY_X, 0.01, s * (HZ / 2 + 0.15)); ov.visible = false;
+  scene.add(ov);
+  overlays['off' + s] = ov;
+}
+const rings = Array.from({ length: 16 }, () => {
+  const m = new THREE.Mesh(new THREE.RingGeometry(R * 0.78, R * 0.95, 40), new THREE.MeshBasicMaterial({ color: 0xffe2a8, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2; m.visible = false;
+  scene.add(m);
+  return m;
+});
+
+// Point numbers along the frame, as on a tournament board.
+function makeLabels() {
+  for (let p = 1; p <= 24; p++) {
+    const tex = canvasTex(128, 96, (g, w, h) => {
+      g.fillStyle = '#c9a35c';
+      g.font = '50px "Marcellus SC", Georgia, serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(String(p), w / 2, h / 2 + 3);
+    });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.42), new THREE.MeshBasicMaterial({ map: tex, transparent: true, color: 0xe8c890, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(colX(pointCol(p)), FH + 0.003, (p <= 12 ? 1 : -1) * (HZ + FT / 2));
+    scene.add(m);
+  }
+}
+(document.fonts ? document.fonts.load('50px "Marcellus SC"').catch(() => {}) : Promise.resolve()).then(makeLabels);
+
+// Doubling cube resting on the bar, 64 up.
+{
+  const faces = [2, 4, 64, 8, 16, 32].map((n) => new THREE.MeshPhysicalMaterial({
+    map: canvasTex(128, 128, (g, w, h) => {
+      g.fillStyle = '#efe7d6'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#2a1d14'; g.font = '600 58px "Marcellus SC", Georgia, serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(n), w / 2, h / 2 + 3);
+    }), roughness: 0.35, clearcoat: 0.6, envMapIntensity: 0.4,
+  }));
+  const cube = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.5, 0.5, 3, 0.06), faces);
+  cube.position.set(0, FH + 0.25, 0); cube.rotation.y = 0.2; cube.castShadow = true;
+  scene.add(cube);
+  staticBox(-0.25, 0.25, FH, FH + 0.5, -0.25, 0.25, mWood, 'wood');
+}
+
+// Invisible pick volumes for each point, the bar and the trays.
+const pickables = [];
+function pickBox(x, z, sx, sz, loc) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(sx, 1.6, sz), new THREE.MeshBasicMaterial({ visible: false }));
+  m.position.set(x, 0.8, z); m.userData.loc = loc;
+  scene.add(m); pickables.push(m);
+}
+for (let p = 1; p <= 24; p++) pickBox(colX(pointCol(p)), (p <= 12 ? 1 : -1) * (HZ - 2.7), 1, 5.4, p);
+pickBox(0, 0, 1, 2 * HZ, 'bar');
+pickBox(TRAY_X, 0, 1.2, 2 * HZ, 'off');
+
+/* ------------------------------------------------------------------ *
+ *  Checkers                                                           *
+ * ------------------------------------------------------------------ */
+const checkerGeo = new THREE.LatheGeometry([
+  [0, 0], [R - 0.02, 0], [R, 0.02], [R, H - 0.025], [R - 0.015, H], [R - 0.07, H],
+  [R - 0.085, H - 0.014], [R - 0.12, H - 0.014], [R - 0.135, H], [0, H],
+].map(([x, y]) => new THREE.Vector2(x, y - H / 2)), 56);
+const ivory = new THREE.MeshPhysicalMaterial({ color: 0xece2cc, roughness: 0.38, clearcoat: 0.7, clearcoatRoughness: 0.25, envMapIntensity: 0.5, emissive: 0xc9a35c, emissiveIntensity: 0 });
+const ebony = new THREE.MeshPhysicalMaterial({ color: 0x1f1b19, roughness: 0.3, clearcoat: 0.9, clearcoatRoughness: 0.18, envMapIntensity: 0.6, emissive: 0xc9a35c, emissiveIntensity: 0 });
+const checkers = [];
+for (let id = 0; id < 30; id++) {
+  const color = id < 15 ? W : B;
+  const mesh = new THREE.Mesh(checkerGeo, (color === W ? ivory : ebony).clone());
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+  const body = new CANNON.Body({ mass: 0.3, type: CANNON.Body.KINEMATIC, material: mChk, collisionFilterGroup: GRP_CHK, collisionFilterMask: GRP_BOARD | GRP_DIE | GRP_CHK });
+  body.addShape(new CANNON.Cylinder(R, R, H, 16));
+  body.kind = 'checker';
+  world.addBody(body);
+  const c = { id, color, mesh, body, anim: null, lift: 0, restKey: null, restIdx: -1 };
+  body.addEventListener('collide', (e) => onImpact(body, e.body, e.contact));
+  checkers.push(c);
+}
+
+function slotPos(key, i) {
+  const layer = Math.floor(i / 5), k = i % 5;
+  if (key[0] === 'p') {
+    const p = +key.slice(1), bottom = p <= 12, dz = R + 0.03 + k * S + layer * S / 2;
+    return new THREE.Vector3(colX(pointCol(p)), H / 2 + layer * H, bottom ? HZ - dz : -HZ + dz);
+  }
+  if (key === 'barW' || key === 'barB') {
+    const s = key === 'barW' ? 1 : -1;
+    return new THREE.Vector3(0, FH + H / 2 + layer * H, s * (0.6 + R + k * S + layer * S / 2));
+  }
+  const s = key === 'offW' ? 1 : -1;
+  return new THREE.Vector3(TRAY_X, H / 2 + k * H, s * (HZ - R - 0.08 - layer * S));
+}
+const easeInOut = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+const _tilt = new THREE.Quaternion(), _axis = new THREE.Vector3();
+
+function placeInstant(id, key, idx) {
+  const c = checkers[id], p = slotPos(key, idx);
+  c.anim = null; c.restKey = key; c.restIdx = idx;
+  c.body.type = CANNON.Body.KINEMATIC;
+  c.body.position.set(p.x, p.y, p.z);
+  c.body.quaternion.set(0, 0, 0, 1);
+  c.body.velocity.setZero(); c.body.angularVelocity.setZero();
+}
+// Lift, carry in an arc, then release a few millimetres above the stack and let physics land it.
+function animateChecker(id, key, idx, delay = 0) {
+  return new Promise((resolve) => {
+    const c = checkers[id];
+    if (c.anim) c.anim.resolve();
+    const from = new THREE.Vector3().copy(c.body.position), final = slotPos(key, idx);
+    const to = final.clone(); to.y += 0.42;
+    const dist = from.distanceTo(to);
+    c.restKey = key; c.restIdx = idx;
+    c.body.type = CANNON.Body.KINEMATIC;
+    c.body.collisionFilterMask = GRP_BOARD | GRP_DIE | GRP_CHK;
+    c.anim = { phase: 'arc', t: -delay, dur: 0.3 + Math.min(dist, 16) * 0.028, from, to, final, peak: 0.7 + dist * 0.05, resolve, startQ: new THREE.Quaternion() };
+  });
+}
+function updateCheckers(dt) {
+  for (const c of checkers) {
+    const a = c.anim, b = c.body;
+    if (!a) continue;
+    a.t += dt;
+    if (a.phase === 'arc') {
+      if (a.t < 0) continue;
+      if (!a.lifted) { a.lifted = true; Snd.pickup(b.position.x); releaseDiceAbove(b.position); }
+      const u = clamp(a.t / a.dur, 0, 1), e = easeInOut(u);
+      const y = a.from.y + (a.to.y - a.from.y) * e + 4 * u * (1 - u) * a.peak;
+      b.position.set(a.from.x + (a.to.x - a.from.x) * e, y, a.from.z + (a.to.z - a.from.z) * e);
+      _axis.set(a.to.z - a.from.z, 0, a.from.x - a.to.x);
+      if (_axis.lengthSq() > 1e-6) {
+        _tilt.setFromAxisAngle(_axis.normalize(), Math.sin(Math.PI * u) * 0.22);
+        b.quaternion.set(_tilt.x, _tilt.y, _tilt.z, _tilt.w);
+      }
+      if (u >= 1) {
+        a.phase = 'drop'; a.t = 0;
+        b.quaternion.set(0, 0, 0, 1);
+        b.type = CANNON.Body.DYNAMIC;
+        b.collisionFilterMask = GRP_BOARD | GRP_CHK;   // a landing checker never disturbs settled dice
+        b.velocity.set(0, -1.2, 0); b.angularVelocity.set(rand(-0.6, 0.6), 0, rand(-0.6, 0.6));
+        b.wakeUp();
+      }
+    } else if (a.phase === 'drop') {
+      if ((a.t > 0.22 && b.velocity.length() < 0.2) || a.t > 0.9) {
+        b.type = CANNON.Body.KINEMATIC;
+        b.velocity.setZero(); b.angularVelocity.setZero();
+        b.collisionFilterMask = GRP_BOARD | GRP_DIE | GRP_CHK;
+        a.phase = 'settle'; a.t = 0;
+        a.from = new THREE.Vector3().copy(b.position);
+        a.startQ.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
+      }
+    } else {
+      const u = clamp(a.t / 0.12, 0, 1);
+      b.position.set(a.from.x + (a.final.x - a.from.x) * u, a.from.y + (a.final.y - a.from.y) * u, a.from.z + (a.final.z - a.from.z) * u);
+      _tilt.copy(a.startQ).slerp(new THREE.Quaternion(), u);
+      b.quaternion.set(_tilt.x, _tilt.y, _tilt.z, _tilt.w);
+      if (u >= 1) { c.anim = null; a.resolve(); }
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Dice                                                               *
+ * ------------------------------------------------------------------ */
+const FACE_VALUES = [1, 6, 2, 5, 3, 4]; // BoxGeometry face order: +x −x +y −y +z −z (opposites sum to 7)
+const AXES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map(([x, y, z]) => new CANNON.Vec3(x, y, z));
+const PIPS = {
+  1: [[0.5, 0.5]], 2: [[0.28, 0.28], [0.72, 0.72]], 3: [[0.28, 0.28], [0.5, 0.5], [0.72, 0.72]],
+  4: [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]],
+  5: [[0.28, 0.28], [0.72, 0.28], [0.5, 0.5], [0.28, 0.72], [0.72, 0.72]],
+  6: [[0.28, 0.26], [0.72, 0.26], [0.28, 0.5], [0.72, 0.5], [0.28, 0.74], [0.72, 0.74]],
+};
+function faceTex(n, bg, pip, bump) {
+  return canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = bump ? '#ffffff' : bg; g.fillRect(0, 0, w, h);
+    const r = w * (n === 1 ? 0.1 : 0.078);
+    for (const [x, y] of PIPS[n]) {
+      if (bump) {
+        const gr = g.createRadialGradient(x * w, y * h, 0, x * w, y * h, r);
+        gr.addColorStop(0, '#000'); gr.addColorStop(0.75, '#333'); gr.addColorStop(1, '#fff');
+        g.fillStyle = gr;
+      } else g.fillStyle = pip;
+      g.beginPath(); g.arc(x * w, y * h, r, 0, Math.PI * 2); g.fill();
+    }
+  }, { srgb: !bump });
+}
+const dieGeo = new RoundedBoxGeometry(D, D, D, 4, 0.065);
+function dieMaterials(bg, pip, color) {
+  return FACE_VALUES.map((n) => new THREE.MeshPhysicalMaterial({
+    map: faceTex(n, bg, pip, false), bumpMap: faceTex(n, bg, pip, true), bumpScale: 1.2,
+    roughness: 0.28, clearcoat: 0.8, clearcoatRoughness: 0.15, envMapIntensity: 0.5, color,
+  }));
+}
+const dieMats = { w: dieMaterials('#f4efe4', '#1b1714', 0xffffff), b: dieMaterials('#8d2420', '#f1e4c4', 0xffffff) };
+const dice = { w: [], b: [] };
+for (const k of ['w', 'b']) for (let i = 0; i < 2; i++) {
+  const mesh = new THREE.Mesh(dieGeo, dieMats[k]);
+  mesh.castShadow = true; mesh.visible = false;
+  scene.add(mesh);
+  const body = new CANNON.Body({ mass: 1, material: mDie, linearDamping: 0.08, angularDamping: 0.12, collisionFilterGroup: GRP_DIE, collisionFilterMask: GRP_BOARD | GRP_DIE | GRP_CHK });
+  body.addShape(new CANNON.Box(new CANNON.Vec3(D / 2, D / 2, D / 2)));
+  body.kind = 'die';
+  body.addEventListener('collide', (e) => onImpact(body, e.body, e.contact));
+  dice[k].push({ mesh, body, inWorld: false, voice: k === 'w' ? i : i + 2 });
+}
+const allDice = [...dice.w, ...dice.b];
+
+function onImpact(a, b, contact) {
+  // Each pair reports twice; let one side speak.
+  if (a.kind === b.kind && a.id > b.id) return;
+  if (a.kind === 'checker' && b.kind === 'die') return;
+  const now = performance.now();
+  if (a._snd && now - a._snd < 35) return;
+  a._snd = now;
+  const v = Math.abs(contact.getImpactVelocityAlongNormal());
+  if (a.kind === 'die') Snd.dice(v, b.kind, a.position.x);
+  else if (a.type === CANNON.Body.DYNAMIC || b.type === CANNON.Body.DYNAMIC) Snd.checker(v, b.kind, a.position.x);
+}
+
+let rolling = null;
+// A die that came to rest on a checker drops to the felt when that checker is picked up.
+function releaseDiceAbove(p) {
+  for (const d of allDice) {
+    const b = d.body;
+    if (!d.inWorld || b.type !== CANNON.Body.STATIC || b.position.y < D * 0.75) continue;
+    if (Math.hypot(b.position.x - p.x, b.position.z - p.z) < R + D * 0.7) { b.type = CANNON.Body.DYNAMIC; b.wakeUp(); }
+  }
+}
+function readDie(d) {
+  let best = -2, value = 1;
+  for (let i = 0; i < 6; i++) {
+    const v = d.body.quaternion.vmult(AXES[i]);
+    if (v.y > best) { best = v.y; value = FACE_VALUES[i]; }
+  }
+  return { value, up: best };
+}
+function hideDice() {
+  for (const d of allDice) {
+    d.mesh.visible = false;
+    if (d.inWorld) { world.removeBody(d.body); d.inWorld = false; }
+  }
+}
+function launchDice(list, sides) {
+  list.forEach((d, i) => {
+    const sx = sides[i] === W ? 1 : -1, b = d.body;
+    const start = new CANNON.Vec3(sx * (rand(5.0, 5.8) - i * 0.85), rand(2.0, 2.6), sx * rand(3.9, 4.6));
+    const tx = sx * rand(2.0, 4.4), tz = sx * rand(-1.6, 0.8);
+    let dx = tx - start.x, dz = tz - start.z;
+    const L = Math.hypot(dx, dz), sp = rand(9, 13);
+    dx /= L; dz /= L;
+    b.type = CANNON.Body.DYNAMIC;
+    b.position.copy(start);
+    b.velocity.set(dx * sp, rand(-0.5, 1.5), dz * sp);
+    b.angularVelocity.set(rand(-25, 25), rand(-25, 25), rand(-25, 25));
+    b.quaternion.setFromEuler(rand(0, 6.28), rand(0, 6.28), rand(0, 6.28));
+    if (!d.inWorld) { world.addBody(b); d.inWorld = true; }
+    b.wakeUp();
+    d.mesh.visible = true;
+  });
+}
+// Throw until the dice land flat on the board; the result is whatever physics leaves face up.
+async function throwDice(list, sides) {
+  const myGen = gen;
+  for (;;) {
+    hideDice();
+    Snd.shake(0.55);
+    await wait(540);
+    if (myGen !== gen) return null;
+    launchDice(list, sides);
+    Snd.toss();
+    const res = await new Promise((resolve) => { rolling = { list, t: 0, still: 0, resolve }; });
+    if (myGen !== gen) return null;
+    if (res.ok) return res.values;
+    toast(res.reason);
+    await wait(950);
+    if (myGen !== gen) return null;
+  }
+}
+function updateDice(dt) {
+  for (const d of allDice) {
+    if (d.inWorld) {
+      const b = d.body;
+      d.mesh.position.copy(b.position); d.mesh.quaternion.copy(b.quaternion);
+      const speed = Math.hypot(b.velocity.x, b.velocity.z) + b.angularVelocity.length() * 0.08;
+      Snd.roll(d.voice, b.type === CANNON.Body.DYNAMIC ? speed : 0, b.position.y < D * 0.62, b.position.x);
+    } else Snd.roll(d.voice, 0, false, 0);
+  }
+  if (!rolling) return;
+  rolling.t += dt;
+  let still = true;
+  for (const d of rolling.list) if (d.body.velocity.length() > 0.06 || d.body.angularVelocity.length() > 0.1) still = false;
+  rolling.still = still ? rolling.still + dt : 0;
+  if ((rolling.still > 0.35 && rolling.t > 0.5) || rolling.t > 8) {
+    const r = rolling;
+    rolling = null;
+    let ok = true, reason = '';
+    const values = r.list.map((d) => {
+      const { value, up } = readDie(d), p = d.body.position;
+      if (p.y < -0.3 || Math.abs(p.z) > HZ || p.x < -HX || p.x > HX) { ok = false; reason = 'A die left the board. Throwing again.'; }
+      else if (up < 0.96) { ok = false; reason = 'Cocked die. Throwing again.'; }
+      d.body.type = CANNON.Body.STATIC;
+      d.body.velocity.setZero(); d.body.angularVelocity.setZero();
+      return value;
+    });
+    r.resolve({ ok, reason, values });
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Game flow                                                          *
+ * ------------------------------------------------------------------ */
+let state, stacks, turn = W, phase = 'opening', mode = 'ai', gen = 0;
+let turnDice = [], rem = [], legal = [], undoStack = [], selected = null, dests = new Map();
+const score = { w: 0, b: 0 };
+
+function initialStacks() {
+  const st = { barW: [], barB: [], offW: [], offB: [] };
+  for (let p = 1; p <= 24; p++) st['p' + p] = [];
+  let wid = 0, bid = 15;
+  const put = (p, n, col) => { for (let i = 0; i < n; i++) st['p' + p].push(col === W ? wid++ : bid++); };
+  put(24, 2, W); put(13, 5, W); put(8, 3, W); put(6, 5, W);
+  put(1, 2, B); put(12, 5, B); put(17, 3, B); put(19, 5, B);
+  return st;
+}
+const cloneStacks = (st) => Object.fromEntries(Object.entries(st).map(([k, v]) => [k, v.slice()]));
+const locKey = (pl, loc) => (loc === 'bar' ? (pl === W ? 'barW' : 'barB') : loc === 'off' ? (pl === W ? 'offW' : 'offB') : 'p' + loc);
+const isHuman = (pl) => mode === 'pvp' || pl === W;
+const who = (pl) => (mode === 'ai' ? (pl === W ? 'You' : 'The computer') : pl === W ? 'White' : 'Black');
+const diceText = (v) => v.join('–');
+
+function syncPositions(instant) {
+  const jobs = [];
+  for (const [key, ids] of Object.entries(stacks)) ids.forEach((id, i) => {
+    const c = checkers[id];
+    if (instant) placeInstant(id, key, i);
+    else if (c.restKey !== key || c.restIdx !== i) jobs.push(animateChecker(id, key, i, jobs.length * 0.03));
+  });
+  return Promise.all(jobs);
+}
+
+function newGame(instant = false) {
+  gen++;
+  rolling = null;
+  turnStart = null;
+  state = initialState();
+  stacks = initialStacks();
+  turn = W; phase = 'opening';
+  turnDice = []; rem = []; legal = []; undoStack = []; selected = null; dests = new Map();
+  hideDice();
+  syncPositions(instant);
+  setStatus('Throw one die each to decide who moves first.');
+  refresh();
+}
+
+async function openingRoll() {
+  const myGen = gen;
+  phase = 'rolling'; refresh();
+  setStatus('Opening throw: one die each.');
+  const vals = await throwDice([dice.w[0], dice.b[0]], [W, B]);
+  if (!vals || myGen !== gen) return;
+  const [a, b] = vals;
+  if (a === b) {
+    setStatus(`Both threw ${a}. Throw again.`);
+    await wait(1100);
+    if (myGen === gen) openingRoll();
+    return;
+  }
+  turn = a > b ? W : B;
+  toast(`${who(turn)} ${mode === 'ai' && turn === W ? 'start' : 'starts'} with ${Math.max(a, b)}–${Math.min(a, b)}`);
+  beginTurn(a > b ? [a, b] : [b, a]);
+}
+
+async function rollFor(pl) {
+  const myGen = gen;
+  phase = 'rolling'; selected = null; refresh();
+  setStatus(isHuman(pl) && mode === 'ai' ? 'Rolling…' : `${who(pl)} rolls…`);
+  const k = sideKey(pl);
+  const vals = await throwDice([dice[k][0], dice[k][1]], [pl, pl]);
+  if (!vals || myGen !== gen) return;
+  beginTurn(vals);
+}
+
+async function beginTurn(vals) {
+  const myGen = gen;
+  turnDice = vals[0] === vals[1] ? [vals[0], vals[0], vals[0], vals[0]] : vals.slice();
+  rem = turnDice.slice();
+  undoStack = []; selected = null; dests = new Map();
+  turnStart = { state: cloneState(state), stacks: cloneStacks(stacks) };
+  legal = legalMoves(state, turn, rem);
+  if (!legal.length) {
+    phase = 'nomove'; refresh();
+    setStatus(`${who(turn)} can't move with ${diceText(vals)}.`);
+    await wait(1900);
+    if (myGen === gen) endTurn();
+    return;
+  }
+  if (!isHuman(turn)) { phase = 'ai'; refresh(); aiPlay(); return; }
+  phase = 'move'; refresh();
+  setStatus(mode === 'ai' ? `Play your ${diceText(vals)}.` : `${who(turn)} to play ${diceText(vals)}.`);
+}
+
+async function doMove(m, pl) {
+  const srcKey = locKey(pl, m.from), dstKey = locKey(pl, m.to);
+  const id = stacks[srcKey].pop(), jobs = [];
+  if (m.hit) {
+    const victim = stacks[dstKey].pop(), barKey = pl === W ? 'barB' : 'barW';
+    stacks[barKey].push(victim);
+    jobs.push(animateChecker(victim, barKey, stacks[barKey].length - 1, 0.18));
+  }
+  stacks[dstKey].push(id);
+  state = applyMove(state, pl, m);
+  rem.splice(rem.indexOf(m.die), 1);
+  jobs.push(animateChecker(id, dstKey, stacks[dstKey].length - 1, m.hit ? 0.12 : 0));
+  refreshHud();
+  await Promise.all(jobs);
+}
+
+async function playPath(path) {
+  const myGen = gen;
+  undoStack.push({ state: cloneState(state), stacks: cloneStacks(stacks), rem: rem.slice() });
+  phase = 'anim'; selected = null; dests = new Map(); refresh();
+  for (const m of path) {
+    await doMove(m, turn);
+    if (myGen !== gen) return;
+    if (state.off[sideKey(turn)] === 15) return gameOver(turn);
+  }
+  afterMove();
+}
+function afterMove() {
+  legal = rem.length ? legalMoves(state, turn, rem) : [];
+  if (legal.length) { phase = 'move'; setStatus(mode === 'ai' ? `Play your ${diceText(rem)}.` : `${who(turn)} to play ${diceText(rem)}.`); }
+  else { phase = 'done'; setStatus(rem.length ? 'No further moves are possible. End your turn.' : 'Moves complete. End your turn, or undo.'); }
+  refresh();
+}
+async function undo() {
+  if (!undoStack.length || (phase !== 'move' && phase !== 'done')) return;
+  const myGen = gen, snap = undoStack.pop();
+  state = snap.state; stacks = snap.stacks; rem = snap.rem;
+  phase = 'anim'; selected = null; refresh();
+  await syncPositions(false);
+  if (myGen === gen) afterMove();
+}
+function endTurn() {
+  if (phase === 'over') return;
+  turn = -turn;
+  turnStart = null;
+  phase = 'await'; turnDice = []; rem = []; legal = []; selected = null; dests = new Map(); undoStack = [];
+  if (isHuman(turn)) setStatus(mode === 'ai' ? 'Your turn. Roll the dice.' : `${who(turn)} to roll.`);
+  else setStatus(`${who(turn)} is rolling.`);
+  refresh();
+  if (!isHuman(turn)) { const myGen = gen; setTimeout(() => { if (myGen === gen && phase === 'await') rollFor(turn); }, 650); }
+}
+async function aiPlay() {
+  const myGen = gen;
+  setStatus(`${who(turn)} plays ${diceText(turnDice.length === 4 ? turnDice : rem)}.`);
+  await wait(450);
+  if (myGen !== gen) return;
+  let best = null, bestScore = -Infinity;
+  for (const seq of allSequences(state, turn, rem)) {
+    const sc = evaluate(seq.state, turn) + Math.random() * 0.05;
+    if (sc > bestScore) { bestScore = sc; best = seq; }
+  }
+  for (const m of best ? best.moves : []) {
+    await doMove(m, turn);
+    if (myGen !== gen) return;
+    if (state.off[sideKey(turn)] === 15) return gameOver(turn);
+    await wait(180);
+  }
+  await wait(450);
+  if (myGen === gen) endTurn();
+}
+function gameOver(pl) {
+  const loser = -pl;
+  let pts = 1, kind = '';
+  if (state.off[sideKey(loser)] === 0) {
+    pts = 2; kind = ' a gammon';
+    let back = state.bar[sideKey(loser)] > 0;
+    for (let q = 1; q <= 6; q++) if (state.pts[toAbs(pl, q)] * loser > 0) back = true;
+    if (back) { pts = 3; kind = ' a backgammon'; }
+  }
+  score[sideKey(pl)] += pts;
+  phase = 'over'; rem = []; legal = [];
+  const verb = mode === 'ai' && pl === W ? 'win' : 'wins';
+  setStatus(`${who(pl)} ${verb}${kind}, ${pts} point${pts > 1 ? 's' : ''}.`);
+  toast(`${who(pl)} ${verb}${kind}`);
+  refresh();
+}
+
+/* ------------------------------------------------------------------ *
+ *  HUD                                                                *
+ * ------------------------------------------------------------------ */
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
+}
+const setStatus = (msg) => { $('status').textContent = msg; };
+function dieSvg(n, used) {
+  const dots = PIPS[n].map(([x, y]) => `<circle cx="${x * 30}" cy="${y * 30}" r="${n === 1 ? 3.4 : 2.7}" fill="${turn === W ? '#1b1714' : '#f1e4c4'}"/>`).join('');
+  return `<svg class="chip${used ? ' used' : ''}" viewBox="0 0 30 30" aria-label="${n}${used ? ' (used)' : ''}" role="img"><rect x="1" y="1" width="28" height="28" rx="6" fill="${turn === W ? '#f4efe4' : '#8d2420'}"/>${dots}</svg>`;
+}
+function refreshHud() {
+  $('pipW').textContent = pipCount(state, W); $('pipB').textContent = pipCount(state, B);
+  $('offW').textContent = state.off.w; $('offB').textContent = state.off.b;
+  $('scoreW').textContent = score.w; $('scoreB').textContent = score.b;
+  $('nameW').textContent = mode === 'ai' ? 'You' : 'White';
+  $('nameB').textContent = mode === 'ai' ? 'Computer' : 'Black';
+  $('rowW').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === W);
+  $('rowB').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === B);
+  const left = rem.slice();
+  $('chips').innerHTML = turnDice.map((v) => {
+    const i = left.indexOf(v);
+    if (i >= 0) left.splice(i, 1);
+    return dieSvg(v, i < 0);
+  }).join('');
+  const pb = $('primaryBtn');
+  const human = isHuman(turn);
+  if (phase === 'opening') { pb.textContent = 'Throw for first move'; pb.disabled = false; }
+  else if (phase === 'await') { pb.textContent = 'Roll'; pb.disabled = !human; }
+  else if (phase === 'done') { pb.textContent = 'End turn'; pb.disabled = false; }
+  else if (phase === 'over') { pb.textContent = 'Next game'; pb.disabled = false; }
+  else { pb.textContent = phase === 'move' ? 'Moving…' : phase === 'ai' ? 'Computer moving…' : 'Roll'; pb.disabled = true; }
+  $('undoBtn').disabled = !(undoStack.length && (phase === 'move' || phase === 'done'));
+  $('modeAi').setAttribute('aria-pressed', String(mode === 'ai'));
+  $('modePvp').setAttribute('aria-pressed', String(mode === 'pvp'));
+}
+let sources = new Set(), movableTops = new Set(), selectedTop = -1;
+function refresh() {
+  sources = new Set(); movableTops = new Set(); selectedTop = -1;
+  if (phase === 'move' && isHuman(turn)) {
+    for (const m of legal) sources.add(m.from);
+    for (const s of sources) { const st = stacks[locKey(turn, s)]; if (st.length) movableTops.add(st[st.length - 1]); }
+    if (selected !== null) { const st = stacks[locKey(turn, selected)]; selectedTop = st[st.length - 1]; }
+  }
+  for (const ov of Object.values(overlays)) ov.visible = false;
+  rings.forEach((r) => { r.visible = false; });
+  let ri = 0;
+  for (const [to, path] of dests) {
+    const key = locKey(turn, to), last = path[path.length - 1];
+    overlays[to === 'off' ? 'off' + turn : to].visible = true;
+    if (ri < rings.length) {
+      const p = slotPos(key, last.hit ? 0 : stacks[key].length);
+      rings[ri].position.set(p.x, p.y - H / 2 + 0.012, p.z);
+      rings[ri].visible = true; ri++;
+    }
+  }
+  refreshHud();
+}
+
+function primaryAction() {
+  Snd.init();
+  if (phase === 'opening') openingRoll();
+  else if (phase === 'await' && isHuman(turn)) rollFor(turn);
+  else if (phase === 'done') endTurn();
+  else if (phase === 'over') newGame(false);
+}
+$('primaryBtn').addEventListener('click', primaryAction);
+$('undoBtn').addEventListener('click', () => { Snd.init(); undo(); });
+$('newBtn').addEventListener('click', () => { Snd.init(); score.w = score.b = 0; newGame(false); });
+$('soundBtn').addEventListener('click', (e) => {
+  Snd.init();
+  Snd.setOn(!Snd.on);
+  e.currentTarget.textContent = Snd.on ? 'Sound on' : 'Sound off';
+  e.currentTarget.setAttribute('aria-pressed', String(Snd.on));
+});
+function setMode(m) {
+  if (mode === m) return;
+  mode = m;
+  refresh();
+  if (phase === 'await') endTurnStatusRefresh();
+}
+function endTurnStatusRefresh() {
+  if (isHuman(turn)) setStatus(mode === 'ai' ? 'Your turn. Roll the dice.' : `${who(turn)} to roll.`);
+  else { setStatus(`${who(turn)} is rolling.`); const myGen = gen; setTimeout(() => { if (myGen === gen && phase === 'await' && !isHuman(turn)) rollFor(turn); }, 500); }
+}
+// After a mouse or touch press, hand focus back to the table so Space still rolls.
+document.querySelectorAll('button').forEach((b) => b.addEventListener('pointerup', () => setTimeout(() => b.blur(), 0)));
+$('modeAi').addEventListener('click', () => setMode('ai'));
+$('modePvp').addEventListener('click', () => setMode('pvp'));
+window.addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('button, input, select, textarea')) return;
+  if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); primaryAction(); }
+  else if (e.key === 'u' || e.key === 'U' || ((e.ctrlKey || e.metaKey) && e.key === 'z')) { e.preventDefault(); undo(); }
+  else if (e.key === 'Escape') { selected = null; dests = new Map(); refresh(); }
+});
+
+/* ------------------------------------------------------------------ *
+ *  Picking                                                            *
+ * ------------------------------------------------------------------ */
+const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function pickLoc(e) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObjects(pickables, false)[0];
+  return hit ? hit.object.userData.loc : null;
+}
+let down = null;
+canvas.addEventListener('pointerdown', (e) => { Snd.init(); down = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!down) return;
+  const moved = Math.hypot(e.clientX - down[0], e.clientY - down[1]);
+  down = null;
+  if (moved < 7) handleClick(pickLoc(e));
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse' || down) return;
+  const loc = phase === 'move' && isHuman(turn) ? pickLoc(e) : null;
+  canvas.classList.toggle('can-pick', loc !== null && (sources.has(loc) || dests.has(loc)));
+});
+function handleClick(loc) {
+  if (phase !== 'move' || !isHuman(turn)) return;
+  if (selected !== null && loc !== null && dests.has(loc)) { playPath(dests.get(loc)); return; }
+  if (loc !== null && sources.has(loc) && selected !== loc) {
+    selected = loc;
+    dests = reachFrom(state, turn, rem, loc);
+    const st = stacks[locKey(turn, loc)];
+    Snd.pickup(checkers[st[st.length - 1]].body.position.x);
+  } else { selected = null; dests = new Map(); }
+  refresh();
+}
+
+/* ------------------------------------------------------------------ *
+ *  Main loop                                                          *
+ * ------------------------------------------------------------------ */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  updateCheckers(dt);
+  world.step(1 / 120, dt, 8);
+  updateDice(dt);
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.006);
+  for (const c of checkers) {
+    const sel = c.id === selectedTop;
+    c.lift += ((sel ? 0.16 : 0) - c.lift) * Math.min(1, dt * 14);
+    c.mesh.material.emissiveIntensity = sel ? 0.4 : movableTops.has(c.id) ? 0.08 + 0.14 * pulse : 0;
+    c.mesh.position.set(c.body.position.x, c.body.position.y + c.lift, c.body.position.z);
+    c.mesh.quaternion.set(c.body.quaternion.x, c.body.quaternion.y, c.body.quaternion.z, c.body.quaternion.w);
+  }
+  for (const ov of Object.values(overlays)) if (ov.visible) ov.material.opacity = 0.16 + 0.2 * pulse;
+  for (const r of rings) if (r.visible) r.material.opacity = 0.45 + 0.4 * pulse;
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Boot (keeps the position across live page updates when possible)  *
+ * ------------------------------------------------------------------ */
+let turnStart = null;
+function start(data) {
+  fitView();
+  newGame(true);
+  if (data && data.state && data.stacks) {
+    state = data.state; stacks = data.stacks; turn = data.turn === B ? B : W; mode = data.mode === 'pvp' ? 'pvp' : 'ai';
+    Object.assign(score, data.score || {});
+    phase = data.phase === 'opening' ? 'opening' : 'await';
+    syncPositions(true);
+    if (phase === 'await') endTurnStatusRefresh();
+    refresh();
+  }
+  requestAnimationFrame(frame);
+}
+window.claude?.hot?.snapshot?.(() => {
+  const opening = phase === 'opening' || (phase === 'rolling' && !turnDice.length && !turnStart && state.off.w + state.off.b === 0 && pipCount(state, W) === 167 && pipCount(state, B) === 167);
+  const snap = turnStart && phase !== 'await' && phase !== 'rolling' && phase !== 'over' ? turnStart : { state, stacks };
+  return { state: snap.state, stacks: snap.stacks, turn, mode, score: { ...score }, phase: opening ? 'opening' : 'await' };
+});
+if (window.claude?.hot?.ready) window.claude.hot.ready(start);
+else start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
