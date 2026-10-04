@@ -91,6 +91,8 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
 /* Settings sheet */
 .set-group { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
 .set-group:first-of-type { border-top: 0; padding-top: 0; }
+.name-in { font: 500 18px var(--font-body); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: #0d0a08; color: var(--ink); width: 100%; box-sizing: border-box; }
+.name-in:focus { outline: 0; border-color: var(--brass); }
 .set-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 600; }
 .set-help { font-size: 13px; color: var(--ink-dim); margin: 0; }
 .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -159,6 +161,8 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
   <section id="menu" class="sheet" hidden role="dialog" aria-labelledby="menuTitle">
     <div class="sheet-head"><h2 id="menuTitle">Game settings</h2><button id="menuX" type="button" class="x" aria-label="Close">&times;</button></div>
     <div>
+      <div class="set-group"><label class="set-label" for="nameIn">Your name</label>
+        <input id="nameIn" class="name-in" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Shown on the TV"></div>
       <div class="set-group"><span class="set-label">Opponent</span>
         <div class="opts"><button type="button" class="opt" data-key="mode" data-value="ai">Computer</button><button type="button" class="opt" data-key="mode" data-value="pvp">Two players</button></div></div>
       <div class="set-group"><span class="set-label">Learning mode</span><p class="set-help">A coach explains the best move and reviews yours.</p>
@@ -203,6 +207,12 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
     6: [[0.28, 0.26], [0.72, 0.26], [0.28, 0.5], [0.72, 0.5], [0.28, 0.74], [0.72, 0.74]],
   };
   let room = null, seat = 'w', peer = null, conn = null, retryTimer = 0, last = null, retries = 0;
+  // Your name, shown on the TV instead of your colour. Shared with the remote-play page on this device.
+  const cleanName = (t) => String(t || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
+  let myName = '', nameTimer = 0, nameSentAt = 0;
+  try { myName = cleanName(localStorage.getItem('walnut-bg-myname')); } catch (err) { /* storage unavailable */ }
+  const colour = (k) => (k === 'w' ? 'White' : 'Black');
+  const nameOf = (s, k) => (s && s.names && s.names[k]) || colour(k);
 
   /* ---------- joining ---------- */
   function parseHash() {
@@ -228,7 +238,7 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
     room = h.room; seat = h.seat;
     $('join').hidden = true; $('play').hidden = false;
     $('mySwatch').className = `swatch ${seat}`;
-    $('myName').textContent = seat === 'w' ? 'White' : 'Black';
+    $('myName').textContent = myName || colour(seat);
     document.title = `${seat === 'w' ? 'White' : 'Black'} · Walnut Backgammon`;
     connect();
   }
@@ -260,7 +270,7 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
         link = { kind: 'direct', send: (m) => conn.send(m) };
         retries = 0; lastHeard = performance.now();
         setConn('Connected', 'ok');
-        conn.send({ type: 'hello', seat });
+        conn.send({ type: 'hello', seat, name: myName });
       });
       conn.on('data', (m) => { lastHeard = performance.now(); onMessage(m); });
       conn.on('close', () => { if (link && link.kind === 'direct' && my === attempt) { setConn('Lost the TV. Reconnecting…', 'bad'); retry(); } });
@@ -286,7 +296,7 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
     const pub = (m) => relay && relay.connected && relay.publish(outbox, JSON.stringify({ ...m, seat, cid }));
     relay.on('connect', () => {
       if (my !== attempt) return;
-      relay.subscribe(inbox, () => pub({ type: 'hello' }));
+      relay.subscribe(inbox, () => pub({ type: 'hello', name: myName }));
       // Wait for the TV's first reply; if it never comes, try the next broker.
       stageTimer = setTimeout(() => { if (my === attempt && !link) { brokerIdx++; tryRelay(); } }, 6000);
     });
@@ -338,6 +348,15 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
     if (open && last) renderMenu(last);
   };
   $('menuOpen').onclick = () => { buzz(8); openMenu($('menu').hidden); };
+  $('nameIn').value = myName;
+  $('nameIn').addEventListener('input', (e) => {
+    myName = cleanName(e.target.value);
+    try { localStorage.setItem('walnut-bg-myname', myName); } catch (err) { /* storage unavailable */ }
+    if (room) $('myName').textContent = myName || colour(seat);
+    clearTimeout(nameTimer);
+    nameTimer = setTimeout(() => { nameSentAt = performance.now(); if (link) link.send({ type: 'name', name: myName }); }, 350);
+  });
+  $('nameIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
   $('menuX').onclick = () => openMenu(false);
   document.querySelectorAll('#menu .opt').forEach((b) => {
     b.onclick = () => {
@@ -381,11 +400,12 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
   function isMine(s) { return s.turn === seat && s.human; }
   function render(s, prev) {
     const mine = isMine(s), free = s.phase === 'opening' || s.phase === 'over';
-    const other = seat === 'w' ? 'Black' : 'White';
-    const youName = seat === 'w' ? 'White' : 'Black';
+    const other = nameOf(s, seat === 'w' ? 'b' : 'w');
+    // The TV missed our name (say it reloaded): send it again.
+    if (myName && link && (!s.names || s.names[seat] !== myName) && performance.now() - nameSentAt > 3000) { nameSentAt = performance.now(); link.send({ type: 'name', name: myName }); }
     // Status
     let title = s.status, sub = '';
-    if (!mine && !free) { title = s.seats[s.turn] || !s.human ? `${s.turn === 'w' ? 'White' : 'Black'} is playing` : `Waiting for ${other}`; sub = s.status; }
+    if (!mine && !free) { title = s.seats[s.turn] || !s.human ? `${nameOf(s, s.turn)} is playing` : `Waiting for ${other}`; sub = s.status; }
     else if (mine && s.phase === 'move') sub = 'Swipe on the pad; the cursor moves on the TV.';
     $('status').textContent = title;
     $('statusSub').textContent = sub;
@@ -509,7 +529,7 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
     pad.classList.toggle('idle', !active);
     let where, help = 'Swipe to move the cursor on the TV · tap to pick up and put down';
     if (s.card && mine) { where = 'Coach card open'; help = 'Use the buttons below, or swipe and tap on the TV card'; }
-    else if (!mine) where = s.phase === 'opening' || s.phase === 'over' ? 'Press the gold button below' : `${s.turn === 'w' ? 'White' : 'Black'} is playing`;
+    else if (!mine) where = s.phase === 'opening' || s.phase === 'over' ? 'Press the gold button below' : `${nameOf(s, s.turn)} is playing`;
     else if (s.phase === 'move' && s.cursor) {
       where = s.cursor.stage === 'dest' ? `Put it on ${s.cursor.label}` : `${s.cursor.label}`;
       help = s.cursor.stage === 'dest' ? 'Tap to move here · swipe for other spots · Back to change checker' : 'Tap to pick up this checker · swipe to choose another';

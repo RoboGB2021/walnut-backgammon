@@ -235,6 +235,13 @@ html.tv .phones p { font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .phones { animation: none; } }
 .build { font: 500 10.5px var(--font-mono); letter-spacing: 0.04em; color: var(--ink-dim); margin-left: 6px; vertical-align: 2px; }
 html.remote .host-only { display: none !important; }
+html:not(.remote) .remote-only { display: none !important; }
+.names { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
+.names label { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 7px; padding: 0 4px 0 9px; background: rgba(240, 230, 210, 0.04); }
+.names label:focus-within { border-color: var(--brass, #c9a35c); }
+.names input { font: 500 13px var(--font-body); color: var(--ink); background: transparent; border: 0; outline: 0; padding: 7px 4px; width: 9.5em; }
+.names input::placeholder { color: var(--ink-dim); }
+html.tv .names input { font-size: 16px; padding: 9px 5px; width: 11em; }
 .invite-link { background: #0d0a08; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-wrap: anywhere; }
 .invite-link code { font: 500 14px var(--font-mono); color: var(--ink); }
 .invite-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -276,7 +283,7 @@ html.tv .invite-link code { font-size: 18px; }
 
 <header class="bar top">
   <section class="panel status-panel">
-    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 17</span></p>
+    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 18</span></p>
     <p id="status" class="status" aria-live="polite">Throw one die each to decide who moves first.</p>
     <p id="sub" class="sub">Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.</p>
   </section>
@@ -295,6 +302,11 @@ html.tv .invite-link code { font-size: 18px; }
       <div class="seg host-only" role="group" aria-label="Opponent">
         <button id="modeAi" type="button" aria-pressed="true">vs Computer</button>
         <button id="modePvp" type="button" aria-pressed="false">Two players</button>
+      </div>
+      <div class="names" role="group" aria-label="Player names">
+        <label class="host-only"><span class="swatch w"></span><input id="nameInW" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="White's name" aria-label="White player's name"></label>
+        <label class="host-only" id="nameLabB"><span class="swatch b"></span><input id="nameInB" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Black's name" aria-label="Black player's name"></label>
+        <label class="remote-only"><span id="nameSwMe" class="swatch b"></span><input id="nameInMe" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Your name" aria-label="Your name"></label>
       </div>
       <button id="soundBtn" type="button" class="btn small" aria-pressed="true">Sound on</button>
       <button id="learnBtn" type="button" class="btn small toggle host-only" aria-pressed="false">Learning mode</button>
@@ -2048,7 +2060,16 @@ function initialStacks() {
 const cloneStacks = (st) => Object.fromEntries(Object.entries(st).map(([k, v]) => [k, v.slice()]));
 const locKey = (pl, loc) => (loc === 'bar' ? (pl === W ? 'barW' : 'barB') : loc === 'off' ? (pl === W ? 'offW' : 'offB') : 'p' + loc);
 const isHuman = (pl) => mode === 'pvp' || pl === W;
-const who = (pl) => (mode === 'ai' ? (pl === W ? 'You' : 'The computer') : pl === W ? 'White' : 'Black');
+// Players' names, typed in the menu or sent from a phone or a friend's page. Blank means "White" / "Black".
+const names = { w: '', b: '' };
+const cleanName = (t) => String(t || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
+if (!remote) try { const n = JSON.parse(localStorage.getItem('walnut-bg-names') || '{}'); names.w = cleanName(n.w); names.b = cleanName(n.b); } catch (err) { /* storage unavailable */ }
+// The name to show for a seat: in a game against the computer, White is "You" unless named.
+function seatName(seat) {
+  if (mode === 'ai' && !remote) return seat === 'w' ? names.w || 'You' : 'Computer';
+  return names[seat] || (seat === 'w' ? 'White' : 'Black');
+}
+const who = (pl) => (mode === 'ai' ? (pl === W ? 'You' : 'The computer') : seatName(pl === W ? 'w' : 'b'));
 const diceText = (v) => v.join('–');
 
 function syncPositions(instant) {
@@ -2246,11 +2267,12 @@ function refreshHud() {
   $('offW').textContent = state.off.w; $('offB').textContent = state.off.b;
   $('scoreW').textContent = score.w; $('scoreB').textContent = score.b;
   if (remote) {
-    $('nameW').textContent = remote.seat === 'w' ? 'You' : 'Your friend';
-    $('nameB').textContent = remote.seat === 'b' ? 'You' : 'Your friend';
+    for (const seat of ['w', 'b']) {
+      $(seat === 'w' ? 'nameW' : 'nameB').textContent = seat === remote.seat ? (names[seat] ? `${names[seat]} (you)` : 'You') : names[seat] || 'Your friend';
+    }
   } else {
-    $('nameW').innerHTML = (mode === 'ai' ? 'You' : 'White') + (phones.seats.w ? `<span class="ph-tag">${phones.seats.w.remote ? 'remote' : 'phone'}</span>` : '');
-    $('nameB').innerHTML = (mode === 'ai' ? 'Computer' : 'Black') + (phones.seats.b && mode !== 'ai' ? `<span class="ph-tag">${phones.seats.b.remote ? 'remote' : 'phone'}</span>` : '');
+    $('nameW').innerHTML = esc(seatName('w')) + (phones.seats.w ? `<span class="ph-tag">${phones.seats.w.remote ? 'remote' : 'phone'}</span>` : '');
+    $('nameB').innerHTML = esc(seatName('b')) + (phones.seats.b && mode !== 'ai' ? `<span class="ph-tag">${phones.seats.b.remote ? 'remote' : 'phone'}</span>` : '');
   }
   $('rowW').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === W);
   $('rowB').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === B);
@@ -2270,7 +2292,7 @@ function refreshHud() {
   $('undoBtn').disabled = !(undoStack.length && (phase === 'move' || phase === 'done'));
   if (remote && remote.last) {
     const r = remote.last, free = phase === 'opening' || phase === 'over';
-    pb.textContent = remoteMine() || free ? r.primary.label : `${r.turn === 'w' ? 'White' : 'Black'} is playing`;
+    pb.textContent = remoteMine() || free ? r.primary.label : `${names[r.turn] || (r.turn === 'w' ? 'White' : 'Black')} is playing`;
     pb.disabled = !(r.primary.enabled && (remoteMine() || free));
     $('undoBtn').disabled = !(r.canUndo && remoteMine());
   }
@@ -2600,9 +2622,48 @@ function setMenu(open) {
   $('menuBtn').setAttribute('aria-expanded', String(open));
 }
 $('menuBtn').addEventListener('click', () => setMenu($('settings').hidden));
+// Set a player's name (blank goes back to the colour), everywhere it shows.
+function setName(seat, v) {
+  const n = cleanName(v);
+  if (names[seat] === n) return;
+  names[seat] = n;
+  if (!remote) try { localStorage.setItem('walnut-bg-names', JSON.stringify(names)); } catch (err) { /* storage unavailable */ }
+  syncNameInputs();
+  retag(W); retag(B);
+  phones.lastSent = '';
+  updateCtrlBanner(); refreshHud(); renderInvite();
+}
+function syncNameInputs() {
+  for (const [id, seat] of [['nameInW', 'w'], ['nameInB', 'b'], ['nameInMe', remote ? remote.seat : 'b']]) {
+    const el = $(id);
+    if (document.activeElement !== el) el.value = names[seat];
+  }
+  const ai = mode === 'ai';
+  $('nameInW').placeholder = ai ? 'Your name' : "White's name";
+  $('nameLabB').hidden = ai;
+}
+for (const [id, seat] of [['nameInW', 'w'], ['nameInB', 'b']]) {
+  $(id).addEventListener('input', (e) => setName(seat, e.target.value));
+}
+if (remote) {
+  $('nameSwMe').className = `swatch ${remote.seat}`;
+  try { names[remote.seat] = cleanName(localStorage.getItem('walnut-bg-myname')); } catch (err) { /* storage unavailable */ }
+  let nameTimer = 0;
+  $('nameInMe').addEventListener('input', (e) => {
+    names[remote.seat] = cleanName(e.target.value);
+    try { localStorage.setItem('walnut-bg-myname', names[remote.seat]); } catch (err) { /* storage unavailable */ }
+    refreshHud(); retag(W); retag(B);
+    clearTimeout(nameTimer);
+    nameTimer = setTimeout(() => remoteSend({ type: 'name', name: names[remote.seat] }), 350);
+  });
+}
+// Enter or Escape in a name box hands the keys back to the game.
+document.querySelectorAll('.names input').forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); el.blur(); } }));
+syncNameInputs();
 function setMode(m) {
   if (mode === m) return;
   mode = m;
+  syncNameInputs();
   refresh();
   if (phase === 'await') endTurnStatusRefresh();
 }
@@ -2646,6 +2707,7 @@ function keyAction(e) {
 }
 let keyEchoTimer = 0;
 window.addEventListener('keydown', (e) => {
+  if (e.target.matches && e.target.matches('input[type="text"], textarea')) return; // typing a name
   const act = keyAction(e);
   const onButton = e.target.closest && e.target.closest('button, input, select, textarea');
   if (tvMode && !['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) {
@@ -2808,18 +2870,31 @@ cursorArrow.scale.setScalar(2.1);
 cursorRing.visible = cursorArrow.visible = false;
 // When a phone is steering, the cursor takes that player's colour and carries their name.
 const CURSOR_COLOURS = { keys: new THREE.Color(0x7ff0e0), [W]: new THREE.Color(0xfff1d0), [B]: new THREE.Color(0xff5a4a) };
-function nameTag(text, fg, bg) {
-  const tex = canvasTex(256, 80, (g, w, h) => {
+function tagTexture(text, fg, bg) {
+  return canvasTex(256, 80, (g, w, h) => {
     g.fillStyle = bg; g.beginPath(); g.roundRect(4, 8, w - 8, h - 16, 30); g.fill();
     g.fillStyle = fg; g.font = '600 36px Figtree, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    let size = 36;
+    while (size > 18 && g.measureText(text).width > w - 40) g.font = `600 ${(size -= 2)}px Figtree, system-ui, sans-serif`;
     g.fillText(text, w / 2, h / 2 + 2);
   });
+}
+function nameTag(text, fg, bg) {
+  const tex = tagTexture(text, fg, bg);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, toneMapped: false, transparent: true }));
+  sp.userData.tag = { text, fg, bg };
   sp.scale.set(2.1, 0.66, 1); sp.renderOrder = 6; sp.visible = false;
   scene.add(sp);
   return sp;
 }
 const cursorTags = { [W]: nameTag('White', '#1b1714', '#f4ead2'), [B]: nameTag('Black', '#f4ead2', '#8d2420') };
+function retag(pl) {
+  const sp = cursorTags[pl], t = sp.userData.tag, text = names[pl === W ? 'w' : 'b'] || (pl === W ? 'White' : 'Black');
+  if (t.text === text) return;
+  t.text = text;
+  sp.material.map.dispose(); sp.material.map = tagTexture(text, t.fg, t.bg); sp.material.needsUpdate = true;
+}
+retag(W); retag(B);
 cursorRing.renderOrder = cursorArrow.renderOrder = 4;
 scene.add(cursorRing, cursorArrow);
 
@@ -2882,14 +2957,14 @@ function updateCtrlBanner() {
   const el = $('ctrlBanner');
   if (remote) { el.hidden = true; return; }
   const kind = live && phones.seats[seat].remote ? 'r' : 'p';
-  if (el.hidden === !live && el.dataset.seat === seat + kind) return;
-  el.hidden = !live; el.dataset.seat = seat + kind;
+  if (el.hidden === !live && el.dataset.seat === seat + kind + names[seat]) return;
+  el.hidden = !live; el.dataset.seat = seat + kind + names[seat];
   if (!live) return;
   $('ctrlSwatch').className = `swatch ${seat}`;
   el.style.setProperty('--ctrl', seat === 'w' ? '#fff1d0' : '#ff5a4a');
   $('ctrlText').textContent = phones.seats[seat].remote
-    ? `${seat === 'w' ? 'White' : 'Black'} is playing remotely`
-    : `${mode === 'ai' && seat === 'w' ? 'You are' : `${seat === 'w' ? 'White' : 'Black'} is`} playing from ${mode === 'ai' && seat === 'w' ? 'your' : 'their'} phone`;
+    ? `${seatName(seat)} is playing remotely`
+    : `${mode === 'ai' && seat === 'w' ? 'You are' : `${seatName(seat)} is`} playing from ${mode === 'ai' && seat === 'w' ? 'your' : 'their'} phone`;
 }
 
 // While a coach card is open, slide and shrink the board into the free part of the screen.
@@ -3077,7 +3152,9 @@ function attachPhone(conn) {
       const seat = msg.seat === 'b' ? 'b' : 'w', old = phones.seats[seat];
       if (old && old !== conn) { try { old.send({ type: 'replaced' }); old.close(); } catch (err) { /* already closed */ } }
       phones.seats[seat] = conn; conn.seat = seat; conn.remote = msg.kind === 'remote';
-      toast(conn.remote ? `Your friend has joined as ${seat === 'w' ? 'White' : 'Black'}` : `${seat === 'w' ? 'White' : 'Black'}'s phone is connected`);
+      const given = cleanName(msg.name);
+      if (given) setName(seat, given);
+      toast(conn.remote ? `${given || 'Your friend'} has joined as ${seat === 'w' ? 'White' : 'Black'}` : `${given || (seat === 'w' ? 'White' : 'Black')}'s phone is connected`);
       if (conn.remote) { renderInvite(); setTimeout(() => { if (!$('invitePanel').hidden) $('invitePanel').hidden = true; }, 1800); }
       if (seat === 'b' && mode === 'ai') setMode('pvp');
       phones.lastSent = '';
@@ -3090,7 +3167,7 @@ function attachPhone(conn) {
   conn.on('close', () => {
     if (conn.seat && phones.seats[conn.seat] === conn) {
       phones.seats[conn.seat] = null;
-      toast(`${conn.seat === 'w' ? 'White' : 'Black'}'s phone disconnected`);
+      toast(conn.remote ? `${names[conn.seat] || 'Your friend'} has left the table` : `${names[conn.seat] || (conn.seat === 'w' ? 'White' : 'Black')}'s phone disconnected`);
       renderPhones(); refreshHud();
     }
   });
@@ -3131,6 +3208,7 @@ function phoneAction(pl, msg) {
     case 'card': if (card && (mine || free)) [...$('cardActions').querySelectorAll('button')][msg.i | 0]?.click(); break;
     case 'closeCard': if (card && (mine || free)) closeCard(); break;
     case 'setting': applySetting(msg.key, msg.value); break;
+    case 'name': setName(pl === W ? 'w' : 'b', msg.name); break;
     default: break;
   }
   phones.lastSent = '';
@@ -3180,6 +3258,7 @@ function phoneSnapshot() {
     canUndo: !$('undoBtn').disabled,
     pip: { w: pipCount(state, W), b: pipCount(state, B) }, score: { ...score },
     seats: { w: !!phones.seats.w, b: !!phones.seats.b },
+    names: { ...names },
     cursor: cursorInfo(),
     settings: { mode, learning, cam: cam.mode, quality, sound: Snd.on, tv: tvMode },
     card: card.hidden ? null : {
@@ -3320,7 +3399,7 @@ function renderInvite() {
   $('inviteShare').hidden = !navigator.share;
   const joined = phones.seats.b && phones.seats.b.remote;
   $('inviteState').textContent = phones.error ? 'Couldn’t set up the table. Check the internet connection and try again.'
-    : joined ? 'Your friend is here. Have a good game!' : url ? 'Waiting for your friend to open the link…' : 'Setting up your table…';
+    : joined ? `${names.b || 'Your friend'} is here. Have a good game!` : url ? 'Waiting for your friend to open the link…' : 'Setting up your table…';
 }
 function openInvite() {
   try { localStorage.setItem('walnut-bg-hosting', '1'); } catch (err) { /* storage unavailable */ }
@@ -3360,7 +3439,7 @@ async function remoteConnect() {
   const retry = () => { retries++; setTimeout(connect, Math.min(8000, 1500 * retries)); };
   const linked = (link) => {
     remote.link = link; retries = 0; lastHeard = performance.now();
-    link.send({ type: 'hello', seat: remote.seat, kind: 'remote' });
+    link.send({ type: 'hello', seat: remote.seat, kind: 'remote', name: names[remote.seat] });
   };
   function tryRelay() {
     clearTimeout(stageTimer);
@@ -3375,7 +3454,7 @@ async function remoteConnect() {
     const pub = (m) => relay && relay.connected && relay.publish(outbox, JSON.stringify({ ...m, seat: remote.seat, cid }));
     relay.on('connect', () => {
       if (my !== attempt) return;
-      relay.subscribe(inbox, () => pub({ type: 'hello', kind: 'remote' }));
+      relay.subscribe(inbox, () => pub({ type: 'hello', kind: 'remote', name: names[remote.seat] }));
       stageTimer = setTimeout(() => { if (my === attempt && !remote.link) { brokerIdx++; tryRelay(); } }, 6000);
     });
     relay.on('message', (topic, payload) => {
@@ -3416,6 +3495,15 @@ function applyRemote(s) {
   const first = !remote.last;
   remote.last = s;
   turn = s.turn === 'w' ? W : B; phase = s.phase; mode = s.mode; learning = false;
+  if (s.names) {
+    const other = remote.seat === 'w' ? 'b' : 'w';
+    names[other] = cleanName(s.names[other]);
+    // The host missed our name (say it reloaded): send it again.
+    if (names[remote.seat] && cleanName(s.names[remote.seat]) !== names[remote.seat] && performance.now() - (remote.nameSent || 0) > 3000) {
+      remote.nameSent = performance.now(); remoteSend({ type: 'name', name: names[remote.seat] });
+    }
+    retag(W); retag(B);
+  }
   Object.assign(score, s.score);
   turnDice = s.dice || []; rem = s.rem || [];
   state = { pts: s.pts.slice(), bar: { ...s.bar }, off: { ...s.off } };
@@ -3560,7 +3648,11 @@ function start(data) {
   fitView();
   newGame(true);
   if (!(data && data.state)) startIntro();
-  if (remote) { remoteConnect(); requestAnimationFrame(frame); return; }
+  if (remote) {
+    remoteConnect(); requestAnimationFrame(frame);
+    if (!names[remote.seat]) { setMenu(true); $('nameInMe').placeholder = 'Type your name'; }
+    return;
+  }
   try { if (localStorage.getItem('walnut-bg-hosting') === '1') startPhones(); } catch (err) { /* storage unavailable */ }
   if (data && data.state && data.stacks) {
     state = data.state; stacks = data.stacks; turn = data.turn === B ? B : W; mode = data.mode === 'pvp' ? 'pvp' : 'ai';

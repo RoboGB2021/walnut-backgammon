@@ -63,6 +63,13 @@ network connection.
 - **Opponents.** Play against a heuristic computer player, or two players can
   share one screen.
 
+- **Player names.** Type each player's name in **Menu** (one box against the
+  computer, two for two players). Names replace "White" and "Black" on the
+  scoreboard, in messages, on the TV banner and on the cursor tags, and are
+  remembered on that device. A phone controller sets its player's name under
+  **☰ Menu → Your name**. A friend who joins by invite link is asked for their
+  name, which appears on your screen as soon as they type it.
+
 - **TV mode.** Press **TV mode** (or <kbd>T</kbd>), or open the page with `#tv`
   at the end of its address. Text and buttons get bigger and the margins widen
   so nothing is cut off at the edges of the TV. You can play with a TV remote,
