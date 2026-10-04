@@ -219,6 +219,13 @@ html.tv.idle, html.tv.idle * { cursor: none !important; }
 .seat.on em { color: var(--hint); }
 .phones-foot { font-size: 13.5px; }
 .phones-foot code { font: 500 17px var(--font-mono); color: var(--ink); letter-spacing: 0.15em; }
+.ctrl-banner { position: fixed; z-index: 4; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter) + 66px); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 16px 8px 10px; border-radius: 999px; background: rgba(18, 13, 10, 0.86); border: 1px solid var(--panel-edge); font-weight: 600; white-space: nowrap; pointer-events: none; transition: box-shadow 0.25s, border-color 0.25s; }
+.ctrl-banner .swatch { margin: 0; width: 18px; height: 18px; }
+.ctrl-banner .phone { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 600; }
+.ctrl-banner.ping { border-color: var(--ctrl, var(--hint)); box-shadow: 0 0 0 2px var(--ctrl, var(--hint)), 0 0 24px var(--ctrl, var(--hint)); }
+html.tv .ctrl-banner { font-size: 20px; padding: 10px 22px 10px 14px; bottom: calc(env(safe-area-inset-bottom, 0px) + max(20px, 3.5vh) + 92px); }
+html.tv .ctrl-banner .swatch { width: 24px; height: 24px; }
+@media (max-width: 640px) { .ctrl-banner { font-size: 12.5px; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter) + 54px); } }
 .ph-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--hint); margin-left: 6px; }
 html.tv .phones h2 { font-size: 32px; }
 html.tv .phones p { font-size: 18px; }
@@ -259,7 +266,7 @@ html.tv .phones p { font-size: 18px; }
 
 <header class="bar top">
   <section class="panel status-panel">
-    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 12</span></p>
+    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 13</span></p>
     <p id="status" class="status" aria-live="polite">Throw one die each to decide who moves first.</p>
     <p id="sub" class="sub">Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.</p>
   </section>
@@ -311,6 +318,7 @@ html.tv .phones p { font-size: 18px; }
 </section>
 <aside id="lesson" class="lesson" hidden role="status" aria-live="polite"><b id="lessonTitle"></b><button id="lessonClose" type="button" class="card-x" aria-label="Dismiss">&times;</button><p id="lessonText"></p></aside>
 
+<div id="ctrlBanner" class="ctrl-banner" hidden aria-live="polite"><span id="ctrlSwatch" class="swatch w"></span><span id="ctrlText"></span></div>
 <section id="phonesPanel" class="phones" hidden role="dialog" aria-labelledby="phonesTitle">
   <div class="card-head"><h2 id="phonesTitle">Play from your phones</h2><button id="phonesClose" type="button" class="card-x" aria-label="Close">&times;</button></div>
   <p>Each player scans their code with their phone camera. Your phone shows your own board, dice and buttons, and only works on your turn.</p>
@@ -2635,6 +2643,7 @@ function handleClick(loc) {
  *  TV mode: remote / keyboard / gamepad navigation                    *
  * ------------------------------------------------------------------ */
 let navActive = false, navIdx = 0, navLastSel = null, navInput = 'keys';
+let navOwner = null, navOwnerAt = 0; // the player whose phone last moved the cursor
 // The things you can choose right now: movable checkers, or, once one is picked, where it can go.
 function navOptions() {
   if (phase !== 'move' || !isHuman(turn)) return [];
@@ -2724,6 +2733,20 @@ cursorRing.add(cursorDisc);
 const cursorArrow = new THREE.Mesh(arrowGeo, cursorMat);
 cursorArrow.scale.setScalar(2.1);
 cursorRing.visible = cursorArrow.visible = false;
+// When a phone is steering, the cursor takes that player's colour and carries their name.
+const CURSOR_COLOURS = { keys: new THREE.Color(0x7ff0e0), [W]: new THREE.Color(0xfff1d0), [B]: new THREE.Color(0xff5a4a) };
+function nameTag(text, fg, bg) {
+  const tex = canvasTex(256, 80, (g, w, h) => {
+    g.fillStyle = bg; g.beginPath(); g.roundRect(4, 8, w - 8, h - 16, 30); g.fill();
+    g.fillStyle = fg; g.font = '600 36px Figtree, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, w / 2, h / 2 + 2);
+  });
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, toneMapped: false, transparent: true }));
+  sp.scale.set(2.1, 0.66, 1); sp.renderOrder = 6; sp.visible = false;
+  scene.add(sp);
+  return sp;
+}
+const cursorTags = { [W]: nameTag('White', '#1b1714', '#f4ead2'), [B]: nameTag('Black', '#f4ead2', '#8d2420') };
 cursorRing.renderOrder = cursorArrow.renderOrder = 4;
 scene.add(cursorRing, cursorArrow);
 
@@ -2757,7 +2780,7 @@ function updateNav(now, dt) {
   const opts = navActive || tvMode ? navOptions() : [];
   const show = opts.length > 0 && $('card').hidden;
   cursorRing.visible = cursorArrow.visible = show;
-  if (!show) return;
+  if (!show) { cursorTags[W].visible = cursorTags[B].visible = false; return; }
   navIdx = clamp(navIdx, 0, opts.length - 1);
   const p = opts[navIdx].pos, onChecker = selected === null;
   const top = onChecker ? p.y + H / 2 + 0.03 : p.y - H / 2 + 0.02;
@@ -2765,6 +2788,31 @@ function updateNav(now, dt) {
   cursorRing.scale.setScalar(1 + 0.08 * Math.sin(now * 0.008));
   cursorArrow.position.set(p.x, top + 1.8 + 0.22 * Math.sin(now * 0.006), p.z);
   cursorArrow.rotation.y = now * 0.003;
+  // Colour and label by who is driving: a phone owner while it is their turn, otherwise teal.
+  const owner = navOwner !== null && navOwner === turn && phones.seats[sideKey(navOwner)] ? navOwner : null;
+  cursorMat.color.copy(CURSOR_COLOURS[owner ?? 'keys']).multiplyScalar(3);
+  for (const k of [W, B]) {
+    const tag = cursorTags[k];
+    tag.visible = owner === k;
+    if (tag.visible) tag.position.set(p.x, top + 3.0 + 0.22 * Math.sin(now * 0.006), p.z);
+  }
+}
+let bannerPingTimer = 0;
+function pingBanner() {
+  const el = $('ctrlBanner');
+  el.classList.add('ping'); clearTimeout(bannerPingTimer);
+  bannerPingTimer = setTimeout(() => el.classList.remove('ping'), 280);
+}
+// "White is playing from their phone" while the player whose turn it is has a phone connected.
+function updateCtrlBanner() {
+  const seat = sideKey(turn), live = phase !== 'opening' && phase !== 'over' && isHuman(turn) && !!phones.seats[seat];
+  const el = $('ctrlBanner');
+  if (el.hidden === !live && el.dataset.seat === seat) return;
+  el.hidden = !live; el.dataset.seat = seat;
+  if (!live) return;
+  $('ctrlSwatch').className = `swatch ${seat}`;
+  el.style.setProperty('--ctrl', seat === 'w' ? '#fff1d0' : '#ff5a4a');
+  $('ctrlText').textContent = `${mode === 'ai' && seat === 'w' ? 'You are' : `${seat === 'w' ? 'White' : 'Black'} is`} playing from ${mode === 'ai' && seat === 'w' ? 'your' : 'their'} phone`;
 }
 
 // While a coach card is open, slide and shrink the board into the free part of the screen.
@@ -2988,6 +3036,16 @@ function phoneAction(pl, msg) {
         showHint();
       }
       break;
+    case 'nav': case 'ok': case 'back': {
+      const cardOpen = !$('card').hidden;
+      if (!(mine || (free && msg.type === 'ok') || (cardOpen && free))) break;
+      if (msg.type === 'ok' && !cardOpen && phase !== 'move') { if (mine || free) primaryAction(); break; }
+      navOwner = pl; navOwnerAt = performance.now();
+      navActive = true;
+      navAction(msg.type === 'nav' ? (['left', 'right', 'up', 'down'].includes(msg.dir) ? msg.dir : null) : msg.type, 'phone');
+      pingBanner();
+      break;
+    }
     case 'cancel':
       if (!mine) break;
       if (card) closeCard(); else if (selected !== null) { selected = null; dests = new Map(); refresh(); }
@@ -2999,6 +3057,19 @@ function phoneAction(pl, msg) {
   phones.lastSent = '';
 }
 // Everything a phone needs to draw its own copy of the table.
+// What the TV cursor is on, in words the phone can show without anyone looking up.
+function cursorInfo() {
+  const opts = navOptions();
+  if (!opts.length) return null;
+  const o = opts[clamp(navIdx, 0, opts.length - 1)];
+  const name = (loc) => (loc === 'bar' ? 'the bar' : loc === 'off' ? 'off the board' : `the ${ptName(turn, loc)} point`);
+  if (selected === null) {
+    const n = o.loc === 'bar' ? state.bar[sideKey(turn)] : Math.abs(state.pts[o.loc]);
+    return { stage: 'source', label: o.loc === 'bar' ? 'Checker on the bar' : `Checker on ${ptName(turn, o.loc)} (${n} there)` };
+  }
+  const path = dests.get(o.loc), hit = path && path[path.length - 1].hit;
+  return { stage: 'dest', label: `${name(o.loc)}${hit ? ' (hits!)' : ''}` };
+}
 function phoneSnapshot() {
   const card = $('card');
   return {
@@ -3010,6 +3081,7 @@ function phoneSnapshot() {
     canUndo: !$('undoBtn').disabled,
     pip: { w: pipCount(state, W), b: pipCount(state, B) }, score: { ...score },
     seats: { w: !!phones.seats.w, b: !!phones.seats.b },
+    cursor: cursorInfo(),
     card: card.hidden ? null : {
       title: $('cardTitle').textContent,
       badge: $('cardBadge').hidden ? '' : $('cardBadge').textContent,
@@ -3184,6 +3256,7 @@ function frame(now) {
   updateNav(now, dt);
   updateViewShift(dt);
   pushPhones(now);
+  updateCtrlBanner();
   trackFps(dt);
   if (composer && quality === 'high') composer.render(); else renderer.render(scene, camera);
   requestAnimationFrame(frame);

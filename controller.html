@@ -34,7 +34,7 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--font-body); overscroll-behavior: none; }
 body { display: flex; justify-content: center; }
-main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-direction: column; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px calc(env(safe-area-inset-bottom, 0px) + 14px); }
+main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-direction: column; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px calc(env(safe-area-inset-bottom, 0px) + 14px); }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .who { display: flex; align-items: center; gap: 10px; font: 20px/1 var(--font-display); letter-spacing: 0.06em; color: var(--brass); }
 .swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); flex: none; }
@@ -53,10 +53,28 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
 .pips { font: 12.5px var(--font-mono); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .chip { width: 30px; height: 30px; }
 .chip.used { opacity: 0.25; }
-.board-wrap { position: relative; flex: 1 1 auto; display: flex; align-items: center; min-height: 0; }
-#board { width: 100%; height: auto; max-height: 62vh; display: block; touch-action: manipulation; user-select: none; }
-#board .zone { fill: transparent; cursor: pointer; }
-#board.idle { opacity: 0.72; }
+.play { display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; min-height: 0; }
+/* The swipe pad: felt under your thumb. Swipe to move the TV cursor, tap to pick up or put down. */
+.pad { position: relative; flex: 1 1 auto; min-height: 260px; border-radius: 18px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+  background: radial-gradient(120% 90% at 50% 40%, #27463e 0%, #1a302a 60%, #12211d 100%); border: 1px solid var(--edge); box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.55); }
+.pad::before { content: ""; position: absolute; inset: 0; opacity: 0.18; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E"); pointer-events: none; }
+.pad.idle { filter: saturate(0.4) brightness(0.7); }
+.pad-text { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; padding: 0 22px; display: grid; gap: 8px; pointer-events: none; }
+.pad-where { font: 22px/1.2 var(--font-display); letter-spacing: 0.04em; color: var(--ink); text-wrap: balance; }
+.pad-help { font-size: 13.5px; color: rgba(240, 230, 210, 0.6); }
+.pad-arrows { position: absolute; inset: 14px; pointer-events: none; }
+.pad-arrows i { position: absolute; width: 0; height: 0; border: 9px solid transparent; opacity: 0.35; transition: opacity 0.15s, transform 0.15s; }
+.pad-arrows .u { top: 0; left: 50%; margin-left: -9px; border-bottom-color: var(--ink); }
+.pad-arrows .d { bottom: 0; left: 50%; margin-left: -9px; border-top-color: var(--ink); }
+.pad-arrows .l { left: 0; top: 50%; margin-top: -9px; border-right-color: var(--ink); }
+.pad-arrows .r { right: 0; top: 50%; margin-top: -9px; border-left-color: var(--ink); }
+.pad-arrows i.on { opacity: 1; border-bottom-color: var(--hint); transform: scale(1.5); }
+.pad-arrows .d.on { border-top-color: var(--hint); border-bottom-color: transparent; }
+.pad-arrows .l.on { border-right-color: var(--hint); border-bottom-color: transparent; }
+.pad-arrows .r.on { border-left-color: var(--hint); border-bottom-color: transparent; }
+.trail { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; border: 2px solid var(--hint); pointer-events: none; animation: ripple 0.5s ease-out forwards; }
+@keyframes ripple { from { transform: scale(0.4); opacity: 0.9; } to { transform: scale(1.8); opacity: 0; } }
+.dot { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: rgba(95, 212, 196, 0.55); box-shadow: 0 0 16px var(--hint); pointer-events: none; }
 .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .btn { font: 600 16px var(--font-body); color: var(--ink); background: rgba(240, 230, 210, 0.06); border: 1px solid var(--line); border-radius: 12px; padding: 14px 10px; min-height: 52px; cursor: pointer; }
 .btn:active:not(:disabled) { transform: translateY(1px); background: rgba(240, 230, 210, 0.12); }
@@ -83,7 +101,7 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .seg .btn[aria-pressed="true"] { border-color: var(--brass); background: rgba(201, 163, 92, 0.18); }
 .notice { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(238, 129, 112, 0.12); border: 1px solid rgba(238, 129, 112, 0.4); font-size: 14px; }
-@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .sheet, .trail { animation: none; } }
 </style>
 </head>
 <body>
@@ -104,21 +122,22 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
     <button type="submit" class="btn primary">Join</button>
   </form>
 
-  <div id="play" hidden>
-    <div style="display:grid;gap:10px">
-      <div id="statusBox" class="status-box">
-        <p id="status" class="status">Waiting for the TV…</p>
-        <p id="statusSub" class="status-sub"></p>
-      </div>
-      <div class="row"><div id="dice" class="dice" aria-label="Dice"></div><span id="pips" class="pips"></span></div>
-      <p id="notice" class="notice" hidden></p>
-      <div class="board-wrap"><svg id="board" viewBox="0 0 330 244" role="img" aria-label="Your board"></svg></div>
-      <div class="controls">
-        <button id="primary" type="button" class="btn primary" disabled>Roll</button>
-        <button id="undo" type="button" class="btn" disabled>Undo</button>
-        <button id="hint" type="button" class="btn hint" disabled>Hint</button>
-        <button id="cancel" type="button" class="btn" disabled>Cancel</button>
-      </div>
+  <div id="play" class="play" hidden>
+    <div id="statusBox" class="status-box">
+      <p id="status" class="status">Waiting for the TV…</p>
+      <p id="statusSub" class="status-sub"></p>
+    </div>
+    <div class="row"><div id="dice" class="dice" aria-label="Dice"></div><span id="pips" class="pips"></span></div>
+    <p id="notice" class="notice" hidden></p>
+    <div id="pad" class="pad idle" role="application" aria-label="Swipe pad: swipe to move the cursor on the TV, tap to select">
+      <div class="pad-arrows" aria-hidden="true"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i></div>
+      <div class="pad-text"><span id="padWhere" class="pad-where">Waiting for your turn</span><span id="padHelp" class="pad-help">Swipe to move the cursor on the TV · tap to pick up and put down</span></div>
+    </div>
+    <div class="controls">
+      <button id="primary" type="button" class="btn primary" disabled>Roll</button>
+      <button id="undo" type="button" class="btn" disabled>Undo</button>
+      <button id="hint" type="button" class="btn hint" disabled>Hint</button>
+      <button id="cancel" type="button" class="btn" disabled>Back</button>
     </div>
   </div>
 
@@ -268,7 +287,7 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
   $('primary').onclick = () => { buzz(12); send({ type: 'primary' }); };
   $('undo').onclick = () => { buzz(8); send({ type: 'undo' }); };
   $('hint').onclick = () => { buzz(8); send({ type: 'hint' }); };
-  $('cancel').onclick = () => { buzz(8); send({ type: 'cancel' }); };
+  $('cancel').onclick = () => { buzz(8); send({ type: 'back' }); };
   $('sheetX').onclick = () => send({ type: 'closeCard' });
 
   /* ---------- incoming state ---------- */
@@ -288,7 +307,7 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
     // Status
     let title = s.status, sub = '';
     if (!mine && !free) { title = s.seats[s.turn] || !s.human ? `${s.turn === 'w' ? 'White' : 'Black'} is playing` : `Waiting for ${other}`; sub = s.status; }
-    else if (mine && s.phase === 'move') sub = 'Tap a glowing checker, then a gold point.';
+    else if (mine && s.phase === 'move') sub = 'Swipe on the pad; the cursor moves on the TV.';
     $('status').textContent = title;
     $('statusSub').textContent = sub;
     $('statusBox').classList.toggle('mine', mine && !free);
@@ -314,7 +333,7 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
     $('cancel').disabled = !(mine && (s.selected !== null || s.card));
     $('notice').hidden = !(s.mode === 'ai' && seat === 'b');
     $('notice').textContent = 'The TV is playing against the computer, so Black is the computer. Switch the TV to Two players to play Black.';
-    drawBoard(s, mine && s.phase === 'move');
+    renderPad(s);
     // Coach card
     const showCard = s.card && (mine || free);
     $('sheet').hidden = !showCard;
@@ -353,84 +372,71 @@ main { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-dire
     });
   }
 
-  /* ---------- the board, drawn from your side ---------- */
-  const W_ = 330, H_ = 244, R = 10, COL = 22, TOP = 10, BOT = 234, LEN = 98;
-  const colX = (c) => (c < 6 ? 12 + 11 + c * COL : 166 + 11 + (c - 6) * COL);
-  const pointCol = (p) => (p <= 12 ? 12 - p : p - 13);
-  // Black sees the board flipped top-to-bottom, so their home board is bottom right too.
-  const isBottom = (p) => (seat === 'b' ? p > 12 : p <= 12);
-  function drawBoard(s, active) {
-    const svg = $('board');
-    svg.classList.toggle('idle', !isMine(s) && !(s.phase === 'opening' || s.phase === 'over'));
-    const sources = new Set(s.sources.map(String)), dests = new Set(s.dests.map(String));
-    const sel = s.selected === null ? null : String(s.selected);
-    let out = '';
-    out += `<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
-    out += `<rect x="0" y="0" width="${W_}" height="${H_}" rx="10" fill="#5b3a23"/>`;
-    out += `<rect x="12" y="8" width="132" height="228" fill="#1f3d36"/><rect x="166" y="8" width="132" height="228" fill="#1f3d36"/>`;
-    out += `<rect x="144" y="8" width="22" height="228" fill="#4a2f1c"/><rect x="302" y="8" width="22" height="228" fill="#1f3d36"/>`;
-    // Points
-    for (let p = 1; p <= 24; p++) {
-      const c = pointCol(p), x = colX(c), bottom = isBottom(p);
-      const light = p <= 12 ? c % 2 === 0 : c % 2 === 1;
-      const base = bottom ? BOT : TOP, tip = bottom ? BOT - LEN : TOP + LEN;
-      const lit = dests.has(String(p));
-      out += `<polygon points="${x - 10.5},${base} ${x + 10.5},${base} ${x},${tip}" fill="${lit ? '#e8c06a' : light ? '#e6d6b8' : '#8c2f2b'}" opacity="${lit ? 0.95 : 1}"/>`;
-      const label = seat === 'w' ? p : 25 - p;
-      out += `<text x="${x}" y="${bottom ? 242 : 6.5}" font-size="6" text-anchor="middle" fill="#c9a35c" font-family="Figtree,sans-serif">${label}</text>`;
-    }
-    // Checkers on points
-    const chk = (x, y, col, ring, n) => {
-      let g = `<circle cx="${x}" cy="${y}" r="${R - 0.6}" fill="${col > 0 ? '#ece2cc' : '#221d1a'}" stroke="${col > 0 ? '#b9ad94' : '#55493f'}" stroke-width="1"/>`;
-      g += `<circle cx="${x}" cy="${y}" r="${R - 4}" fill="none" stroke="${col > 0 ? '#cfc3aa' : '#3a322c'}" stroke-width="0.8"/>`;
-      if (ring) g += `<circle cx="${x}" cy="${y}" r="${R + 1.6}" fill="none" stroke="${ring}" stroke-width="2.6" filter="url(#glow)"/>`;
-      if (n) g += `<text x="${x}" y="${y + 3.2}" font-size="9" font-weight="600" text-anchor="middle" fill="${col > 0 ? '#1b1714' : '#f0e6d2'}" font-family="Figtree,sans-serif">${n}</text>`;
-      return g;
-    };
-    for (let p = 1; p <= 24; p++) {
-      const v = s.pts[p];
-      if (!v) continue;
-      const n = Math.abs(v), col = Math.sign(v), x = colX(pointCol(p)), bottom = isBottom(p);
-      const step = n > 5 ? (LEN - 2 * R) / (n - 1) : 2 * R;
-      for (let i = 0; i < n; i++) {
-        const y = bottom ? BOT - R - i * step : TOP + R + i * step;
-        const top = i === n - 1;
-        const ring = top && sel === String(p) ? '#ffd27a' : top && active && sources.has(String(p)) ? '#5fd4c4' : null;
-        out += chk(x, y, col, ring, top && n > 5 ? n : 0);
-      }
-    }
-    // Bar and borne-off trays: your own checkers always sit on your (bottom) side.
-    for (const k of ['w', 'b']) {
-      const col = k === 'w' ? 1 : -1, ours = k === seat, n = s.bar[k], shown = Math.min(n, 4);
-      for (let i = 0; i < shown; i++) {
-        const y = ours ? 122 + 16 + i * 2 * R : 122 - 16 - i * 2 * R, topOne = i === shown - 1;
-        const ring = topOne && ours ? (sel === 'bar' ? '#ffd27a' : active && sources.has('bar') ? '#5fd4c4' : null) : null;
-        out += chk(155, y, col, ring, topOne && n > 4 ? n : 0);
-      }
-      for (let i = 0; i < s.off[k]; i++) {
-        const y = ours ? BOT - 5 - i * 6.4 : TOP + i * 6.4;
-        out += `<rect x="304" y="${y}" width="18" height="5" rx="1.5" fill="${col > 0 ? '#ece2cc' : '#221d1a'}" stroke="${col > 0 ? '#b9ad94' : '#55493f'}" stroke-width="0.6"/>`;
-      }
-    }
-    if (dests.has('off')) out += `<rect x="302" y="124" width="22" height="112" fill="#e8c06a" opacity="0.45" rx="3"/>`;
-    // Tap zones
-    if (active) {
-      for (let p = 1; p <= 24; p++) {
-        const x = colX(pointCol(p)), bottom = isBottom(p);
-        out += `<rect class="zone" data-loc="${p}" x="${x - 11}" y="${bottom ? 122 : 0}" width="22" height="122"/>`;
-      }
-      out += `<rect class="zone" data-loc="bar" x="144" y="0" width="22" height="${H_}"/>`;
-      out += `<rect class="zone" data-loc="off" x="300" y="0" width="30" height="${H_}"/>`;
-    }
-    svg.innerHTML = out;
-  }
-  $('board').addEventListener('click', (e) => {
-    const z = e.target.closest('.zone');
-    if (!z) return;
-    const loc = z.dataset.loc;
-    buzz(8);
-    send({ type: 'pick', loc: loc === 'bar' || loc === 'off' ? loc : Number(loc) });
+  /* ---------- the swipe pad ---------- */
+  // Swipes follow the board as you see it on the TV: swipe left and the cursor moves left there.
+  // A long drag keeps stepping, one point per stretch of finger travel; a quick tap selects.
+  const pad = $('pad'), STEP = 64, TAP = 14;
+  let touch = null;
+  const flashArrow = (dir) => {
+    const el = pad.querySelector('.' + dir[0]);
+    el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 160);
+  };
+  const ripple = (x, y) => {
+    const r = pad.getBoundingClientRect(), el = document.createElement('span');
+    el.className = 'trail'; el.style.left = (x - r.left) + 'px'; el.style.top = (y - r.top) + 'px';
+    pad.appendChild(el); setTimeout(() => el.remove(), 520);
+  };
+  const padActive = () => last && isMine(last) && (last.phase === 'move' || last.card);
+  pad.addEventListener('pointerdown', (e) => {
+    keepAwake();
+    pad.setPointerCapture(e.pointerId);
+    touch = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ax: e.clientX, ay: e.clientY, t0: performance.now(), steps: 0, dot: null };
+    const d = document.createElement('span'); d.className = 'dot';
+    const r = pad.getBoundingClientRect(); d.style.left = (e.clientX - r.left) + 'px'; d.style.top = (e.clientY - r.top) + 'px';
+    pad.appendChild(d); touch.dot = d;
   });
+  pad.addEventListener('pointermove', (e) => {
+    if (!touch || e.pointerId !== touch.id) return;
+    const r = pad.getBoundingClientRect();
+    touch.dot.style.left = (e.clientX - r.left) + 'px'; touch.dot.style.top = (e.clientY - r.top) + 'px';
+    const dx = e.clientX - touch.ax, dy = e.clientY - touch.ay;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < STEP) return;
+    const dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+    touch.ax = e.clientX; touch.ay = e.clientY; touch.steps++;
+    if (padActive()) { send({ type: 'nav', dir }); buzz(6); }
+    flashArrow(dir);
+  });
+  const endTouch = (e) => {
+    if (!touch || e.pointerId !== touch.id) return;
+    const dx = e.clientX - touch.x0, dy = e.clientY - touch.y0, dist = Math.hypot(dx, dy), dt = performance.now() - touch.t0;
+    touch.dot.remove();
+    if (e.type === 'pointerup') {
+      if (!touch.steps && dist < TAP && dt < 500) { if (padActive()) { send({ type: 'ok' }); buzz(14); } ripple(e.clientX, e.clientY); }
+      else if (!touch.steps && dist >= 24) {
+        // A short flick that didn't reach a full step still counts as one move.
+        const dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+        if (padActive()) { send({ type: 'nav', dir }); buzz(6); }
+        flashArrow(dir);
+      }
+    }
+    touch = null;
+  };
+  pad.addEventListener('pointerup', endTouch);
+  pad.addEventListener('pointercancel', endTouch);
+  function renderPad(s) {
+    const mine = isMine(s), active = mine && (s.phase === 'move' || !!s.card);
+    pad.classList.toggle('idle', !active);
+    let where, help = 'Swipe to move the cursor on the TV · tap to pick up and put down';
+    if (s.card && mine) { where = 'Coach card open'; help = 'Use the buttons below, or swipe and tap on the TV card'; }
+    else if (!mine) where = s.phase === 'opening' || s.phase === 'over' ? 'Press the gold button below' : `${s.turn === 'w' ? 'White' : 'Black'} is playing`;
+    else if (s.phase === 'move' && s.cursor) {
+      where = s.cursor.stage === 'dest' ? `Put it on ${s.cursor.label}` : `${s.cursor.label}`;
+      help = s.cursor.stage === 'dest' ? 'Tap to move here · swipe for other spots · Back to change checker' : 'Tap to pick up this checker · swipe to choose another';
+    } else if (s.phase === 'await' || s.phase === 'done') where = 'Press the gold button below';
+    else where = s.status;
+    $('padWhere').textContent = where;
+    $('padHelp').textContent = help;
+  }
 
   start();
 })();

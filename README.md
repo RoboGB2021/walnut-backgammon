@@ -78,14 +78,20 @@ network connection.
     connect a laptop by HDMI, or open the page in the TV's own web browser.
 
 - **Phones as controllers.** Press **Phones** (or <kbd>P</kbd>) and a QR code
-  appears for each colour. Each player scans theirs and their phone becomes their
-  controller. It shows their own board (Black's is flipped so their home board is
-  bottom right too), their dice and the status. You tap a checker and then a lit
-  point to move, and there are big Roll / End turn, Undo, Hint and Cancel buttons.
-  Coach cards appear on the phone of the player whose turn it is. Phones only
-  work on their own turn and buzz when it starts. A Black phone joining switches
-  the game to two players. Without a camera, open `controller.html` and type the
-  six-letter code shown on the TV.
+  appears for each colour. Each player scans theirs and their phone becomes a
+  **swipe pad** for the TV. Swipe and the cursor on the TV moves the same way
+  (left is left, as you see the board), and a longer drag keeps stepping. Tap to
+  pick up the checker under the cursor, then swipe to where it should go and
+  tap again. The pad says where the cursor is ("Checker on 13 (5 there)", "Put
+  it on the 8 point (hits!)"), so you rarely need to look down. Below the pad
+  are Roll / End turn, Undo, Hint and Back, plus your dice and the status.
+  Coach cards appear on the phone of the player whose turn it is.
+  - **On the TV** the cursor takes the colour of the player steering it (cream
+    for White, red for Black) with their name above it, and a banner reads "Black
+    is playing from their phone" and pulses with each swipe.
+  - Phones only act on their own turn and buzz when it starts. A Black phone
+    joining switches the game to two players. Without a camera, open
+    `controller.html` and type the six-letter code shown on the TV.
   - The phone first tries a direct WebRTC link to the game, introduced by the
     free [PeerJS](https://peerjs.com) service. If that hasn't connected within
     about 7 seconds, it falls back to a relay through a free public MQTT
