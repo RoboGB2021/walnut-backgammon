@@ -85,6 +85,18 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 78vh; overflow: auto; background: #18120e; border-top: 1px solid var(--edge); border-radius: 18px 18px 0 0; padding: 16px 18px calc(env(safe-area-inset-bottom, 0px) + 18px); display: grid; gap: 12px; box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.6); animation: up 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; z-index: 5; }
 @keyframes up { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
 .sheet-head { display: flex; align-items: center; gap: 10px; }
+.top-right { display: flex; align-items: center; gap: 10px; }
+.menu-btn { font: 600 14px var(--font-body); color: var(--ink); background: rgba(240, 230, 210, 0.06); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: inline-flex; gap: 6px; align-items: center; }
+.menu-btn:disabled { opacity: 0.4; }
+/* Settings sheet */
+.set-group { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+.set-group:first-of-type { border-top: 0; padding-top: 0; }
+.set-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 600; }
+.set-help { font-size: 13px; color: var(--ink-dim); margin: 0; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opt { font: 600 15px var(--font-body); color: var(--ink-dim); background: rgba(240, 230, 210, 0.04); border: 1px solid var(--line); border-radius: 10px; padding: 12px 8px; min-height: 48px; }
+.opt[aria-pressed="true"] { color: var(--ink); border-color: var(--brass); background: rgba(201, 163, 92, 0.2); }
+.danger { color: #ee8170; border-color: rgba(238, 129, 112, 0.5); }
 .sheet h2 { margin: 0; flex: 1; font: 21px/1.15 var(--font-display); color: var(--brass); letter-spacing: 0.04em; }
 .badge { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid currentColor; border-radius: 5px; padding: 3px 8px; }
 .x { background: none; border: 0; color: var(--ink-dim); font-size: 28px; line-height: 1; padding: 2px 8px; }
@@ -108,7 +120,10 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
 <main>
   <header class="top">
     <div class="who"><span id="mySwatch" class="swatch w"></span><span id="myName">Walnut Backgammon</span></div>
-    <span id="conn" class="conn">Connecting…</span>
+    <div class="top-right">
+      <span id="conn" class="conn">Connecting…</span>
+      <button id="menuOpen" type="button" class="menu-btn" disabled aria-controls="menu"><span aria-hidden="true">&#9776;</span> Menu</button>
+    </div>
   </header>
 
   <form id="join" class="join" hidden>
@@ -140,6 +155,30 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
       <button id="cancel" type="button" class="btn" disabled>Back</button>
     </div>
   </div>
+
+  <section id="menu" class="sheet" hidden role="dialog" aria-labelledby="menuTitle">
+    <div class="sheet-head"><h2 id="menuTitle">Game settings</h2><button id="menuX" type="button" class="x" aria-label="Close">&times;</button></div>
+    <div>
+      <div class="set-group"><span class="set-label">Opponent</span>
+        <div class="opts"><button type="button" class="opt" data-key="mode" data-value="ai">Computer</button><button type="button" class="opt" data-key="mode" data-value="pvp">Two players</button></div></div>
+      <div class="set-group"><span class="set-label">Learning mode</span><p class="set-help">A coach explains the best move and reviews yours.</p>
+        <div class="opts"><button type="button" class="opt" data-key="learning" data-value="1">On</button><button type="button" class="opt" data-key="learning" data-value="0">Off</button></div></div>
+      <div class="set-group"><span class="set-label">Camera</span><p class="set-help">Action follows the dice and each move.</p>
+        <div class="opts"><button type="button" class="opt" data-key="cam" data-value="action">Action</button><button type="button" class="opt" data-key="cam" data-value="classic">Classic</button></div></div>
+      <div class="set-group"><span class="set-label">Graphics</span><p class="set-help">Smooth suits slower TVs and laptops.</p>
+        <div class="opts"><button type="button" class="opt" data-key="quality" data-value="high">High</button><button type="button" class="opt" data-key="quality" data-value="low">Smooth</button></div></div>
+      <div class="set-group"><span class="set-label">Sound</span>
+        <div class="opts"><button type="button" class="opt" data-key="sound" data-value="1">On</button><button type="button" class="opt" data-key="sound" data-value="0">Off</button></div></div>
+      <div class="set-group"><span class="set-label">TV mode</span><p class="set-help">Bigger text and buttons on the big screen.</p>
+        <div class="opts"><button type="button" class="opt" data-key="tv" data-value="1">On</button><button type="button" class="opt" data-key="tv" data-value="0">Off</button></div></div>
+      <div class="set-group">
+        <button type="button" class="btn" id="showCodes">Show join codes on the TV</button>
+        <button type="button" class="btn danger" id="newGame">New game</button>
+        <div id="confirmNew" class="opts" hidden><button type="button" class="btn danger" id="newYes">Yes, start over</button><button type="button" class="btn" id="newNo">Keep playing</button></div>
+        <p id="newHelp" class="set-help" hidden>This ends the current game and resets the score to 0–0.</p>
+      </div>
+    </div>
+  </section>
 
   <section id="sheet" class="sheet" hidden role="dialog" aria-labelledby="sheetTitle">
     <div class="sheet-head"><h2 id="sheetTitle"></h2><span id="sheetBadge" class="badge" hidden></span><button id="sheetX" type="button" class="x" aria-label="Close">&times;</button></div>
@@ -290,6 +329,34 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
   $('cancel').onclick = () => { buzz(8); send({ type: 'back' }); };
   $('sheetX').onclick = () => send({ type: 'closeCard' });
 
+  /* ---------- settings menu ---------- */
+  const openMenu = (open) => {
+    $('menu').hidden = !open;
+    $('confirmNew').hidden = $('newHelp').hidden = true; $('newGame').hidden = false;
+    if (open && last) renderMenu(last);
+  };
+  $('menuOpen').onclick = () => { buzz(8); openMenu($('menu').hidden); };
+  $('menuX').onclick = () => openMenu(false);
+  document.querySelectorAll('#menu .opt').forEach((b) => {
+    b.onclick = () => {
+      const key = b.dataset.key, raw = b.dataset.value;
+      const value = key === 'learning' || key === 'sound' || key === 'tv' ? raw === '1' : raw;
+      buzz(8);
+      send({ type: 'setting', key, value });
+      // Show the choice straight away; the TV's next update confirms it.
+      document.querySelectorAll(`#menu .opt[data-key="${key}"]`).forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    };
+  });
+  $('showCodes').onclick = () => { buzz(8); send({ type: 'setting', key: 'phones', value: true }); openMenu(false); };
+  $('newGame').onclick = () => { $('newGame').hidden = true; $('confirmNew').hidden = $('newHelp').hidden = false; };
+  $('newNo').onclick = () => { $('newGame').hidden = false; $('confirmNew').hidden = $('newHelp').hidden = true; };
+  $('newYes').onclick = () => { buzz([30, 40, 30]); send({ type: 'setting', key: 'newgame', value: true }); openMenu(false); };
+  function renderMenu(s) {
+    if (!s.settings) return;
+    const cur = { mode: s.settings.mode, learning: s.settings.learning ? '1' : '0', cam: s.settings.cam, quality: s.settings.quality, sound: s.settings.sound ? '1' : '0', tv: s.settings.tv ? '1' : '0' };
+    document.querySelectorAll('#menu .opt').forEach((o) => o.setAttribute('aria-pressed', String(cur[o.dataset.key] === o.dataset.value)));
+  }
+
   /* ---------- incoming state ---------- */
   function onMessage(msg) {
     if (!msg || typeof msg !== 'object') return;
@@ -334,8 +401,10 @@ main { width: 100%; max-width: 560px; height: 100%; display: flex; flex-directio
     $('notice').hidden = !(s.mode === 'ai' && seat === 'b');
     $('notice').textContent = 'The TV is playing against the computer, so Black is the computer. Switch the TV to Two players to play Black.';
     renderPad(s);
-    // Coach card
-    const showCard = s.card && (mine || free);
+    $('menuOpen').disabled = false;
+    if (!$('menu').hidden) renderMenu(s);
+    // Coach card (stays out of the way while the settings menu is open)
+    const showCard = s.card && (mine || free) && $('menu').hidden;
     $('sheet').hidden = !showCard;
     if (showCard) renderSheet(s.card);
   }

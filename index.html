@@ -59,7 +59,10 @@ body { font: 14px/1.45 var(--font-body); -webkit-font-smoothing: antialiased; }
 .swatch.w { background: #ece2cc; }
 .swatch.b { background: #221d1a; border-color: rgba(240, 230, 210, 0.35); }
 
-.settings { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.settings { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: 34rem; }
+.table-top { display: flex; align-items: flex-start; gap: 10px; }
+.menu-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.menu-btn[aria-expanded="true"] { border-color: var(--brass); background: rgba(201, 163, 92, 0.2); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .seg button { font: 500 12.5px var(--font-body); color: var(--ink-dim); background: transparent; border: 0; padding: 7px 10px; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: rgba(201, 163, 92, 0.18); color: var(--ink); }
@@ -266,11 +269,12 @@ html.tv .phones p { font-size: 18px; }
 
 <header class="bar top">
   <section class="panel status-panel">
-    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 14</span></p>
+    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 15</span></p>
     <p id="status" class="status" aria-live="polite">Throw one die each to decide who moves first.</p>
     <p id="sub" class="sub">Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.</p>
   </section>
   <section class="panel table-panel">
+    <div class="table-top">
     <table class="scores">
       <thead><tr><th scope="col"><span class="sr">Player</span></th><th scope="col">Pips</th><th scope="col">Off</th><th scope="col">Score</th></tr></thead>
       <tbody>
@@ -278,7 +282,9 @@ html.tv .phones p { font-size: 18px; }
         <tr id="rowB"><th scope="row"><span class="swatch b"></span><span id="nameB">Computer</span></th><td id="pipB">167</td><td id="offB">0</td><td id="scoreB">0</td></tr>
       </tbody>
     </table>
-    <div class="settings">
+    <button id="menuBtn" type="button" class="btn small menu-btn" aria-expanded="false" aria-controls="settings" title="Game settings (M)"><span aria-hidden="true">&#9776;</span> Menu</button>
+    </div>
+    <div id="settings" class="settings" hidden>
       <div class="seg" role="group" aria-label="Opponent">
         <button id="modeAi" type="button" aria-pressed="true">vs Computer</button>
         <button id="modePvp" type="button" aria-pressed="false">Two players</button>
@@ -2200,7 +2206,7 @@ function refreshHud() {
   $('offW').textContent = state.off.w; $('offB').textContent = state.off.b;
   $('scoreW').textContent = score.w; $('scoreB').textContent = score.b;
   $('nameW').innerHTML = (mode === 'ai' ? 'You' : 'White') + (phones.seats.w ? '<span class="ph-tag">phone</span>' : '');
-  $('nameB').innerHTML = (mode === 'ai' ? 'Computer' : 'Black') + (phones.seats.b ? '<span class="ph-tag">phone</span>' : '');
+  $('nameB').innerHTML = (mode === 'ai' ? 'Computer' : 'Black') + (phones.seats.b && mode !== 'ai' ? '<span class="ph-tag">phone</span>' : '');
   $('rowW').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === W);
   $('rowB').classList.toggle('turn', phase !== 'opening' && phase !== 'over' && turn === B);
   const left = rem.slice();
@@ -2529,12 +2535,17 @@ function primaryAction() {
 $('primaryBtn').addEventListener('click', primaryAction);
 $('undoBtn').addEventListener('click', () => { Snd.init(); undo(); });
 $('newBtn').addEventListener('click', () => { Snd.init(); score.w = score.b = 0; newGame(false); });
-$('soundBtn').addEventListener('click', (e) => {
-  Snd.init();
-  Snd.setOn(!Snd.on);
-  e.currentTarget.textContent = Snd.on ? 'Sound on' : 'Sound off';
-  e.currentTarget.setAttribute('aria-pressed', String(Snd.on));
-});
+function setSound(on) {
+  Snd.setOn(on);
+  $('soundBtn').textContent = Snd.on ? 'Sound on' : 'Sound off';
+  $('soundBtn').setAttribute('aria-pressed', String(Snd.on));
+}
+$('soundBtn').addEventListener('click', () => { Snd.init(); setSound(!Snd.on); });
+function setMenu(open) {
+  $('settings').hidden = !open;
+  $('menuBtn').setAttribute('aria-expanded', String(open));
+}
+$('menuBtn').addEventListener('click', () => setMenu($('settings').hidden));
 function setMode(m) {
   if (mode === m) return;
   mode = m;
@@ -2548,12 +2559,13 @@ function endTurnStatusRefresh() {
 // After a mouse or touch press, hand focus back to the table so Space still rolls.
 document.querySelectorAll('button').forEach((b) => b.addEventListener('pointerup', () => setTimeout(() => b.blur(), 0)));
 $('modeAi').addEventListener('click', () => setMode('ai'));
-$('learnBtn').addEventListener('click', () => {
-  learning = !learning;
+function setLearning(on) {
+  learning = on;
   try { localStorage.setItem('walnut-bg-learning', learning ? '1' : '0'); } catch (err) { /* storage unavailable */ }
   if (!learning) { clearHint(); closeCard(false); $('lesson').hidden = true; }
   refresh();
-});
+}
+$('learnBtn').addEventListener('click', () => setLearning(!learning));
 $('hintBtn').addEventListener('click', () => { Snd.init(); showHint(); });
 $('modePvp').addEventListener('click', () => setMode('pvp'));
 // Keyboards, TV remotes and media keys all map onto the same few actions. TV browsers disagree
@@ -2564,7 +2576,7 @@ const KEY_NAMES = {
   Escape: 'back', Esc: 'back', Backspace: 'back', GoBack: 'back', BrowserBack: 'back', Back: 'back', Exit: 'back',
   ' ': 'primary', MediaPlayPause: 'primary', MediaPlay: 'primary', Play: 'primary', ColorF2Yellow: 'primary',
   ColorF0Red: 'hint', ColorF1Green: 'undo', ColorF3Blue: 'tv',
-  h: 'hint', H: 'hint', u: 'undo', U: 'undo', t: 'tv', T: 'tv', p: 'phones', P: 'phones', c: 'camera', C: 'camera',
+  h: 'hint', H: 'hint', u: 'undo', U: 'undo', t: 'tv', T: 'tv', p: 'phones', P: 'phones', c: 'camera', C: 'camera', m: 'menu', M: 'menu',
 };
 const KEY_CODES = {
   37: 'left', 38: 'up', 39: 'right', 40: 'down', 21: 'left', 19: 'up', 22: 'right', 20: 'down', // desktop, Android TV D-pad
@@ -2680,6 +2692,7 @@ function navAction(act, input = 'keys') {
   navInput = input;
   if (act === 'tv') { setTv(!tvMode); return; }
   if (act === 'phones') { togglePhones(); return; }
+  if (act === 'menu') { setMenu($('settings').hidden); return; }
   if (act === 'camera') { setCamMode(cam.mode === 'action' ? 'classic' : 'action'); toast(`Camera: ${cam.mode === 'action' ? 'Action' : 'Classic'}`); return; }
   if (!$('phonesPanel').hidden && (act === 'back' || act === 'ok')) { togglePhones(false); return; }
   if (!$('lesson').hidden && (act === 'ok' || act === 'back')) { $('lesson').hidden = true; return; }
@@ -3053,8 +3066,26 @@ function phoneAction(pl, msg) {
       break;
     case 'card': if (card && (mine || free)) [...$('cardActions').querySelectorAll('button')][msg.i | 0]?.click(); break;
     case 'closeCard': if (card && (mine || free)) closeCard(); break;
+    case 'setting': applySetting(msg.key, msg.value); break;
     default: break;
   }
+  phones.lastSent = '';
+}
+// Game settings changed from a phone's menu. Either player may change them at any time.
+function applySetting(key, v) {
+  let note = '';
+  switch (key) {
+    case 'mode': setMode(v === 'pvp' ? 'pvp' : 'ai'); note = v === 'pvp' ? 'Two players' : 'Playing the computer'; break;
+    case 'learning': setLearning(!!v); note = `Learning mode ${v ? 'on' : 'off'}`; break;
+    case 'cam': setCamMode(v === 'classic' ? 'classic' : 'action'); note = `Camera: ${cam.mode === 'action' ? 'Action' : 'Classic'}`; break;
+    case 'quality': setQuality(v === 'low' ? 'low' : 'high'); note = `Graphics: ${quality === 'high' ? 'High' : 'Smooth'}`; break;
+    case 'sound': setSound(!!v); note = `Sound ${Snd.on ? 'on' : 'off'}`; break;
+    case 'tv': setTv(!!v); note = `TV mode ${tvMode ? 'on' : 'off'}`; break;
+    case 'phones': togglePhones(true); break;
+    case 'newgame': score.w = score.b = 0; newGame(false); note = 'New game'; break;
+    default: return;
+  }
+  if (note) toast(note);
   phones.lastSent = '';
 }
 // Everything a phone needs to draw its own copy of the table.
@@ -3083,6 +3114,7 @@ function phoneSnapshot() {
     pip: { w: pipCount(state, W), b: pipCount(state, B) }, score: { ...score },
     seats: { w: !!phones.seats.w, b: !!phones.seats.b },
     cursor: cursorInfo(),
+    settings: { mode, learning, cam: cam.mode, quality, sound: Snd.on, tv: tvMode },
     card: card.hidden ? null : {
       title: $('cardTitle').textContent,
       badge: $('cardBadge').hidden ? '' : $('cardBadge').textContent,

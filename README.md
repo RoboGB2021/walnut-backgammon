@@ -89,6 +89,13 @@ network connection.
   - **On the TV** the cursor takes the colour of the player steering it (cream
     for White, red for Black) with their name above it, and a banner reads "Black
     is playing from their phone" and pulses with each swipe.
+  - **Menu on the phone.** The ☰ Menu button opens the game settings: opponent,
+    learning mode, camera, graphics, sound and TV mode. It also has buttons to
+    show the join codes on the TV and to start a new game (it asks first).
+    Either player can change settings at any time, and the TV briefly confirms
+    each change.
+  - **The TV stays uncluttered.** The settings row is hidden. A small **Menu**
+    button next to the scores (or <kbd>M</kbd>) shows it when needed.
   - Phones only act on their own turn and buzz when it starts. A Black phone
     joining switches the game to two players. Without a camera, open
     `controller.html` and type the six-letter code shown on the TV.
@@ -121,3 +128,4 @@ network connection.
 | Toggle TV mode | **TV mode** or <kbd>T</kbd> |
 | Action / Classic camera | **Camera** or <kbd>C</kbd> |
 | Phones panel | **Phones** or <kbd>P</kbd> |
+| Show / hide settings | **Menu** or <kbd>M</kbd> |
