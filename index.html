@@ -20,11 +20,17 @@
   --brass-ink: #1b140c;
   --oxblood: #8c2f2b;
   --line: rgba(240, 230, 210, 0.14);
+  --hint: #5fd4c4;
+  --grade-best: #8fd18a;
+  --grade-good: #c9d97a;
+  --grade-doubtful: #e8b45a;
+  --grade-bad: #ee8170;
   --font-display: "Marcellus SC", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --gutter: 16px;
 }
+[hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); overflow: hidden; }
 body { font: 14px/1.45 var(--font-body); -webkit-font-smoothing: antialiased; }
 #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
@@ -77,6 +83,119 @@ button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 .toast { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -6px); background: var(--panel); border: 1px solid var(--panel-edge); color: var(--ink); padding: 10px 16px; border-radius: 9px; font-weight: 600; opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none; max-width: calc(100% - 2 * var(--gutter)); text-align: center; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.btn.toggle[aria-pressed="true"] { background: rgba(201, 163, 92, 0.24); border-color: var(--brass); color: var(--ink); }
+.btn.hint-btn { border-color: rgba(95, 212, 196, 0.55); color: var(--hint); }
+.coach { position: fixed; left: var(--gutter); bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter)); width: min(23rem, calc(100% - 2 * var(--gutter))); display: grid; gap: 6px; }
+.coach p { margin: 0; }
+.coach-tip { font-size: 13.5px; line-height: 1.5; }
+.coach-hint { font-size: 13.5px; }
+.coach-review { display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 7px; font-size: 13px; color: var(--ink-dim); }
+.coach-review:empty { display: none; }
+.coach-review strong, .coach-hint strong { color: var(--ink); font-family: var(--font-mono); font-weight: 500; font-size: 12.5px; }
+.hint-text { color: var(--hint); font-family: var(--font-mono); font-size: 12.5px; }
+.grade { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; margin-left: 4px; }
+.g-best { color: var(--grade-best); } .g-good { color: var(--grade-good); } .g-doubtful { color: var(--grade-doubtful); } .g-bad { color: var(--grade-bad); }
+@media (max-width: 1180px) {
+  .coach { left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter) + 58px); }
+}
+@media (max-width: 640px), (max-height: 560px) {
+  .coach { padding: 7px 10px; gap: 4px; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter) + 50px); }
+  .coach .eyebrow { display: none; }
+  .coach-tip, .coach-hint { font-size: 12.5px; }
+  .coach-review { font-size: 12px; padding-top: 4px; }
+}
+@media (min-width: 700px) and (max-height: 560px) {
+  .coach { left: var(--gutter); transform: none; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter)); width: min(19rem, 34%); }
+}
+/* Coach card: the best move, why, and the alternatives. */
+.card { position: fixed; z-index: 6; left: var(--gutter); top: 50%; transform: translateY(-50%); width: min(25rem, calc(100% - 2 * var(--gutter))); max-height: min(74vh, 42rem); overflow: auto; display: grid; gap: 12px; padding: 16px 18px 18px; background: rgba(18, 13, 10, 0.94); border: 1px solid var(--panel-edge); border-radius: 12px; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6); animation: card-in 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes card-in { from { opacity: 0; transform: translateY(calc(-50% + 16px)) scale(0.97); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
+.card-head { display: flex; align-items: center; gap: 10px; }
+.card h2 { margin: 0; flex: 1; font: 21px/1.15 var(--font-display); letter-spacing: 0.04em; color: var(--brass); text-wrap: balance; }
+.card-x { background: none; border: 0; color: var(--ink-dim); font-size: 24px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.card-x:hover { color: var(--ink); background: rgba(240, 230, 210, 0.08); }
+.card-move { margin: 0; display: grid; gap: 3px; }
+.card-move .nota { font: 500 24px/1.15 var(--font-mono); color: var(--hint); letter-spacing: 0.01em; }
+.card-move .nota.mine { color: var(--ink); font-size: 18px; }
+.card-move small { font-size: 12px; color: var(--ink-dim); letter-spacing: 0.06em; text-transform: uppercase; }
+.reasons { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.reasons li { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 10px; animation: reason-in 0.42s ease both; animation-delay: calc(var(--i) * 140ms + 180ms); }
+.reasons li::before { content: ""; width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: var(--dot, var(--brass)); box-shadow: 0 0 10px var(--dot, var(--brass)); }
+.reasons b { display: block; font-weight: 600; color: var(--ink); }
+.reasons span { color: var(--ink-dim); font-size: 13.5px; }
+@keyframes reason-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+.alts { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+.alts h3 { margin: 0 0 2px; font: 600 10.5px var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-dim); }
+.alt { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem 3.4rem; gap: 8px; align-items: center; font: 12.5px var(--font-mono); color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.alt .meter { height: 6px; border-radius: 3px; background: rgba(240, 230, 210, 0.08); overflow: hidden; }
+.alt .meter i { display: block; height: 100%; width: var(--w); background: var(--brass); animation: bar-grow 0.8s ease both; animation-delay: 0.45s; }
+@keyframes bar-grow { from { width: 0; } to { width: var(--w); } }
+.alt .loss { text-align: right; }
+.alt.is-you { color: var(--ink); } .alt.is-you .meter i { background: var(--grade-doubtful); }
+.alt.is-best { color: var(--hint); } .alt.is-best .meter i { background: var(--hint); }
+.card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.card-actions .btn { padding: 9px 14px; font-size: 13.5px; }
+.grade.big { font-size: 12px; padding: 4px 10px; margin: 0; animation: stamp 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) both; animation-delay: 0.1s; }
+@keyframes stamp { from { opacity: 0; transform: scale(2.4) rotate(-14deg); } to { opacity: 1; transform: none; } }
+.thinking { display: inline-flex; gap: 4px; }
+.thinking i { width: 6px; height: 6px; border-radius: 50%; background: var(--hint); animation: blink 1s infinite both; }
+.thinking i:nth-child(2) { animation-delay: 0.15s; } .thinking i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+.lesson { position: fixed; z-index: 7; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 172px); transform: translateX(-50%); width: min(27rem, calc(100% - 2 * var(--gutter))); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 12px 14px; background: rgba(18, 13, 10, 0.94); border: 1px solid var(--hint); border-radius: 10px; box-shadow: 0 16px 50px rgba(0, 0, 0, 0.55); animation: lesson-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.lesson b { color: var(--hint); font: 16px/1.2 var(--font-display); letter-spacing: 0.05em; }
+.lesson p { grid-column: 1 / -1; margin: 0; font-size: 13.5px; color: var(--ink); }
+@keyframes lesson-in { from { opacity: 0; transform: translate(-50%, -14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 55%, rgba(5, 3, 2, 0.6) 100%); }
+@media (max-width: 760px) {
+  .card { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--gutter) + 54px); left: var(--gutter); right: var(--gutter); width: auto; transform: none; max-height: 42vh; padding: 12px 14px 14px; gap: 9px; animation-name: sheet-in; }
+  .card .alts { display: none; }
+  .reasons span { font-size: 12.5px; }
+  .card h2 { font-size: 18px; }
+  .card-move .nota { font-size: 20px; }
+  .lesson { top: calc(env(safe-area-inset-top, 0px) + 130px); }
+}
+@keyframes sheet-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .card, .reasons li, .alt .meter i, .grade.big, .lesson, .thinking i { animation: none; }
+}
+/* TV mode: couch-distance type, overscan-safe margins, no mouse needed. */
+html.tv { --gutter: max(24px, 3.2vw); }
+html.tv body { font-size: 18px; }
+html.tv .top { top: calc(env(safe-area-inset-top, 0px) + max(20px, 3.5vh)); }
+html.tv .bottom { bottom: calc(env(safe-area-inset-bottom, 0px) + max(20px, 3.5vh)); }
+html.tv .panel { padding: 16px 20px; border-radius: 14px; }
+html.tv .status-panel { max-width: 34rem; }
+html.tv .eyebrow { font-size: 19px; }
+html.tv .status { font-size: 27px; }
+html.tv .sub { font-size: 16px; color: var(--hint); }
+html.tv .scores td { font-size: 20px; }
+html.tv .scores tbody th { font-size: 20px; }
+html.tv .scores thead th { font-size: 13px; }
+html.tv .swatch { width: 15px; height: 15px; }
+html.tv .btn { font-size: 20px; padding: 14px 26px; border-radius: 10px; }
+html.tv .btn.small, html.tv .seg button { font-size: 15px; padding: 9px 13px; }
+html.tv .btn.primary { min-width: 13rem; }
+html.tv .chips { padding: 9px 12px; }
+html.tv .chip { width: 46px; height: 46px; }
+html.tv .coach { width: min(31rem, calc(100% - 2 * var(--gutter))); }
+html.tv .coach-tip { font-size: 17px; }
+html.tv .coach-review { font-size: 16px; }
+html.tv .card { width: min(36rem, calc(100% - 2 * var(--gutter))); padding: 22px 26px 24px; gap: 16px; }
+html.tv .card h2 { font-size: 28px; }
+html.tv .card-move .nota { font-size: 32px; }
+html.tv .card-move .nota.mine { font-size: 24px; }
+html.tv .card-move small { font-size: 14px; }
+html.tv .reasons b { font-size: 19px; }
+html.tv .reasons span { font-size: 17px; }
+html.tv .alt { font-size: 16px; grid-template-columns: minmax(0, 1fr) 7rem 4.5rem; }
+html.tv .card-actions .btn { font-size: 18px; padding: 12px 20px; }
+html.tv .lesson { width: min(36rem, calc(100% - 2 * var(--gutter))); top: calc(env(safe-area-inset-top, 0px) + 22vh); padding: 18px 22px; }
+html.tv .lesson b { font-size: 22px; }
+html.tv .lesson p { font-size: 18px; }
+html.tv .toast { font-size: 24px; padding: 16px 26px; }
+html.tv button:focus-visible { outline-width: 4px; outline-offset: 4px; }
+html.tv.idle, html.tv.idle * { cursor: none !important; }
+@media (max-width: 1100px) { html.tv .status { font-size: 22px; } html.tv .btn { font-size: 17px; padding: 11px 18px; } }
 .fatal { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--gutter); text-align: center; color: var(--ink-dim); }
 
 @media (max-width: 640px), (max-height: 560px) {
@@ -105,12 +224,13 @@ button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 </head>
 <body>
 <canvas id="scene" aria-label="Backgammon board"></canvas>
+<div class="vignette" aria-hidden="true"></div>
 
 <header class="bar top">
   <section class="panel status-panel">
     <p class="eyebrow">Backgammon</p>
     <p id="status" class="status" aria-live="polite">Throw one die each to decide who moves first.</p>
-    <p id="sub" class="sub">Click a glowing checker, then a lit point. Space rolls, U undoes. Drag to orbit.</p>
+    <p id="sub" class="sub">Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.</p>
   </section>
   <section class="panel table-panel">
     <table class="scores">
@@ -126,6 +246,10 @@ button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
         <button id="modePvp" type="button" aria-pressed="false">Two players</button>
       </div>
       <button id="soundBtn" type="button" class="btn small" aria-pressed="true">Sound on</button>
+      <button id="learnBtn" type="button" class="btn small toggle" aria-pressed="false">Learning mode</button>
+      <button id="tvBtn" type="button" class="btn small toggle" aria-pressed="false">TV mode</button>
+      <button id="qualityBtn" type="button" class="btn small" title="Smooth turns off glow and dust for slower devices">Graphics: High</button>
+      <button id="fullBtn" type="button" class="btn small" hidden>Full screen</button>
       <button id="newBtn" type="button" class="btn small">New game</button>
     </div>
   </section>
@@ -133,9 +257,26 @@ button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
 <footer class="bar bottom">
   <div id="chips" class="chips" aria-label="Dice to play"></div>
+  <button id="hintBtn" type="button" class="btn hint-btn" hidden disabled>Hint</button>
   <button id="undoBtn" type="button" class="btn" disabled>Undo</button>
   <button id="primaryBtn" type="button" class="btn primary">Throw for first move</button>
 </footer>
+
+<aside id="coach" class="panel coach" hidden aria-label="Coach">
+  <p class="eyebrow">Coach</p>
+  <p id="coachTip" class="coach-tip" aria-live="polite"></p>
+  <p id="coachHint" class="coach-hint" hidden></p>
+  <div id="coachReview" class="coach-review" aria-live="polite"></div>
+</aside>
+
+<section id="card" class="card" hidden role="dialog" aria-labelledby="cardTitle">
+  <div class="card-head"><h2 id="cardTitle">Coach's best move</h2><span id="cardBadge" class="grade big" hidden></span><button id="cardClose" type="button" class="card-x" aria-label="Close">&times;</button></div>
+  <div id="cardMove" class="card-move"></div>
+  <ol id="cardReasons" class="reasons"></ol>
+  <div id="cardAlts" class="alts" hidden></div>
+  <div id="cardActions" class="card-actions"></div>
+</section>
+<aside id="lesson" class="lesson" hidden role="status" aria-live="polite"><b id="lessonTitle"></b><button id="lessonClose" type="button" class="card-x" aria-label="Dismiss">&times;</button><p id="lessonText"></p></aside>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -153,6 +294,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import * as CANNON from 'cannon-es';
 
 /* ------------------------------------------------------------------ *
@@ -168,6 +313,7 @@ const D = 0.42;                                // die edge
 const GRAV = 38;                               // scaled gravity for the 4 cm unit
 
 const $ = (id) => document.getElementById(id);
+const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -200,6 +346,7 @@ const Snd = {
     this.noise = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = this.noise.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.ambience();
   },
   impulse(sec) {
     const ctx = this.ctx, rate = ctx.sampleRate, len = Math.floor(rate * sec);
@@ -213,6 +360,48 @@ const Snd = {
       }
     }
     return buf;
+  },
+  // The room: fire roar and crackle, a mantel clock, rain on the window, and room tone.
+  ambience() {
+    const ctx = this.ctx;
+    const loop = (type, freq, q, gain, pan) => {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise; src.loop = true; src.playbackRate.value = rand(0.7, 1);
+      const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+      const g = ctx.createGain(); g.gain.value = gain;
+      const p = ctx.createStereoPanner(); p.pan.value = pan;
+      src.connect(f).connect(g).connect(p).connect(this.master);
+      src.start();
+      return g;
+    };
+    const roar = loop('lowpass', 230, 0.6, 0.05, -0.35);
+    loop('lowpass', 130, 0.5, 0.035, 0);
+    loop('bandpass', 2600, 0.35, 0.012, -0.75);
+    let crackle = ctx.currentTime, tick = Math.ceil(ctx.currentTime);
+    setInterval(() => {
+      if (ctx.state !== 'running') return;
+      const now = ctx.currentTime, horizon = now + 0.3;
+      if (crackle < now) crackle = now;
+      while (crackle < horizon) {
+        crackle += rand(0.02, 0.32);
+        const pan = -0.35 + rand(-0.12, 0.12);
+        this.burst(crackle, { type: 'highpass', freq: rand(1500, 5200), q: 0.8, dur: rand(0.003, 0.012), gain: rand(0.012, 0.07), pan });
+        if (Math.random() < 0.07) {
+          this.burst(crackle, { type: 'bandpass', freq: rand(500, 900), q: 1, dur: 0.035, gain: 0.1, pan });
+          this.modes(crackle, [900, 1750], { gain: 0.025, decay: 0.05, pan });
+        }
+      }
+      while (tick < horizon) {
+        if (tick > now) {
+          const odd = tick % 2;
+          this.burst(tick, { type: 'bandpass', freq: odd ? 3300 : 2600, q: 5, dur: 0.006, gain: 0.045, pan: -0.25 });
+          this.modes(tick, odd ? [2300, 4100] : [1850, 3500], { gain: 0.01, decay: 0.03, pan: -0.25 });
+        }
+        tick += 1;
+      }
+      roar.gain.setTargetAtTime(rand(0.028, 0.07), now, 0.35);
+      if (Math.random() < 0.35) this.burst(now + Math.random() * 0.25, { type: 'bandpass', freq: rand(1800, 4500), q: 4, dur: 0.01, gain: rand(0.005, 0.018), pan: -0.8 });
+    }, 250);
   },
   setOn(v) {
     this.on = v;
@@ -505,7 +694,7 @@ function pipCount(s, pl) {
   for (let p = 1; p <= 24; p++) { const c = s.pts[p] * pl; if (c > 0) t += c * (pl === W ? p : 25 - p); }
   return t;
 }
-// Heuristic position evaluation for the computer player.
+// Heuristic position evaluation from one side's point of view (higher is better for `pl`).
 function evaluate(s, pl) {
   const mine = new Array(26).fill(0), theirs = new Array(26).fill(0);
   for (let q = 1; q <= 24; q++) {
@@ -513,33 +702,248 @@ function evaluate(s, pl) {
     if (c > 0) mine[q] = c; else if (c < 0) theirs[q] = -c;
   }
   const myBar = s.bar[sideKey(pl)], opBar = s.bar[sideKey(-pl)], myOff = s.off[sideKey(pl)];
+  if (myOff === 15) return 1000;
   mine[25] = myBar; theirs[0] = opBar;
   const myPip = pipCount(s, pl), opPip = pipCount(s, -pl);
   let myBack = 0; for (let q = 25; q >= 1; q--) if (mine[q]) { myBack = q; break; }
   let opBack = 25; for (let q = 0; q <= 24; q++) if (theirs[q]) { opBack = q; break; }
   if (myBack <= opBack) {
-    let gaps = 0; for (let q = 1; q <= 6; q++) if (!mine[q]) gaps++;
-    return (opPip - myPip) + myOff * 4 - gaps * 0.3;
+    // Pure race: pips, checkers off, and not wasting pips on gaps or stacks in the home board.
+    let waste = 0;
+    for (let q = 1; q <= 6; q++) { if (!mine[q] && q <= 4) waste += 0.25; if (mine[q] > 3) waste += (mine[q] - 3) * 0.15; }
+    return (opPip - myPip) * 1.2 + myOff * 3 - waste;
   }
-  let score = (opPip - myPip) * 0.55 + myOff * 2;
+  let opHome = 0;
+  for (let q = 19; q <= 24; q++) if (theirs[q] >= 2) opHome++;
+  let score = (opPip - myPip) * 0.5 + myOff * 2;
   for (let q = 1; q <= 24; q++) {
     if (mine[q] === 1) {
-      let shots = 0;
-      for (let q2 = 0; q2 < q; q2++) if (theirs[q2]) { const d = q - q2; shots += d <= 6 ? 11 : d <= 12 ? 3 : 0; }
-      score -= (Math.min(shots, 30) / 36) * (7 + q * 0.45);
+      const shots = shotsAt(s, pl, toAbs(pl, q));
+      // A hit costs the pips already travelled, plus more against a strong home board.
+      if (shots) score -= (shots / 36) * (5 + (25 - q) * 0.32 + opHome * 1.6);
     } else if (mine[q] >= 2) {
-      score += 1.2;
-      if (q <= 6) score += 2.2;
-      if (q >= 4 && q <= 8) score += 1.3;
-      if (mine[q] > 3) score -= (mine[q] - 3) * 0.6;
+      score += 1.1;
+      if (q <= 6) score += 1.8 + (q >= 4 ? 1 : 0);
+      if (q === 5) score += 1.2;
+      if (q === 7) score += 1.4;
+      if (q >= 18 && q <= 21) score += 1.6 + (q >= 20 ? 1.2 : 0);
+      if (mine[q] > 3) score -= (mine[q] - 3) * 0.55;
     }
   }
   let run = 0, best = 0, homePts = 0;
-  for (let q = 1; q <= 24; q++) { if (mine[q] >= 2) { run++; best = Math.max(best, run); } else run = 0; }
+  for (let q = 1; q <= 18; q++) { if (mine[q] >= 2) { run++; best = Math.max(best, run); } else run = 0; }
   for (let q = 1; q <= 6; q++) if (mine[q] >= 2) homePts++;
-  score += best * best * 0.6 + opBar * (5 + homePts * 1.5) - myBar * 6;
-  for (let q = 19; q <= 24; q++) score -= mine[q] * 0.35;
+  score += best * best * 0.55 + opBar * (4 + homePts * 1.8) - myBar * (4 + opHome * 1.8);
+  for (let q = 19; q <= 24; q++) if (mine[q] === 1 || mine[q] > 2) score -= mine[q] * 0.3;
   return score;
+}
+const evalSym = (s, pl) => evaluate(s, pl) - evaluate(s, -pl);
+// The 21 distinct rolls; non-doubles happen two ways in 36.
+const ROLLS = [];
+for (let a = 1; a <= 6; a++) for (let b = a; b <= 6; b++) ROLLS.push({ dice: a === b ? [a, a, a, a] : [a, b], w: a === b ? 1 : 2 });
+// One-ply look-ahead: the position after the opponent's best reply, averaged over all 36 rolls.
+function plyScore(st, pl) {
+  if (st.off[sideKey(pl)] === 15) return 1000;
+  let total = 0;
+  for (const roll of ROLLS) {
+    let worst = Infinity;
+    for (const rp of allSequences(st, -pl, roll.dice)) { const v = evalSym(rp.state, pl); if (v < worst) worst = v; }
+    if (worst === Infinity) worst = evalSym(st, pl);
+    total += worst * roll.w;
+  }
+  return total / 36;
+}
+
+// Opening book: the standard best first moves from computer rollouts, in the mover's own point numbers.
+const OPENING_BOOK = {
+  21: [[[13, 11], [6, 5]], 'The standard 2-1 brings a builder to 11 and slots your 5 point, ready to cover it next turn. The 5 point is the most valuable point on the board.'],
+  31: [[[8, 5], [6, 5]], 'Making your 5 point is the best opening roll in the game. It blocks their back checkers and anchors your home board.'],
+  41: [[[24, 23], [13, 9]], 'A builder on 9 aims at your 5 and bar points, and splitting the back checkers makes them harder to trap.'],
+  51: [[[24, 23], [13, 8]], 'Play the 5 safely from 13 to 8 and split your back checkers with the 1, so they have more ways to anchor or escape.'],
+  61: [[[13, 7], [8, 7]], 'Making your bar point blocks every 6 from their back checkers and starts a prime.'],
+  32: [[[24, 21], [13, 11]], 'Split to 21 and bring a builder to 11, preparing good points on both sides of the board.'],
+  42: [[[8, 4], [6, 4]], 'Making your 4 point gives you a strong two-point home board straight away.'],
+  52: [[[13, 8], [13, 11]], 'Two builders come down from the midpoint: safe, flexible, and aimed at your 5, 7 and 4 points.'],
+  62: [[[24, 18], [13, 11]], 'Run one back checker to their bar point and bring a builder to 11, staying active on both sides.'],
+  43: [[[24, 20], [13, 10]], 'Split to your 20 point to fight for an advanced anchor, and bring a builder to 10.'],
+  53: [[[8, 3], [6, 3]], 'Making your 3 point adds a home board point, so a checker you hit later will find it harder to come back in.'],
+  63: [[[24, 18], [13, 10]], 'Run a back checker to 18 and add a builder on 10: active and flexible.'],
+  54: [[[24, 20], [13, 8]], 'Split to 20 to aim for an advanced anchor, and play the 5 safely to your 8 point.'],
+  64: [[[8, 2], [6, 2]], 'Making your 2 point is the common choice: a new home board point with nothing left to hit. Running 24/14 is almost as good.'],
+  65: [[[24, 18], [18, 13]], "Lover's leap: one back checker runs all the way to safety on your midpoint."],
+};
+function isStartPosition(s, pl) {
+  if (s.bar[sideKey(pl)] || s.off[sideKey(pl)]) return false;
+  const want = { 24: 2, 13: 5, 8: 3, 6: 5 };
+  for (let q = 1; q <= 24; q++) if (Math.max(0, s.pts[toAbs(pl, q)] * pl) !== (want[q] || 0)) return false;
+  return true;
+}
+function bookPlay(s, pl, r, seqs) {
+  if (r.length !== 2 || !isStartPosition(s, pl) || !isStartPosition(s, -pl)) return null;
+  const entry = OPENING_BOOK[Math.max(...r) * 10 + Math.min(...r)];
+  if (!entry) return null;
+  let st = s;
+  for (const [f, t] of entry[0]) {
+    const a = toAbs(pl, f), b = toAbs(pl, t);
+    st = applyMove(st, pl, { from: a, to: b, die: f - t, hit: st.pts[b] * pl === -1 });
+  }
+  const k = keyOf(st), seq = seqs.find((q) => keyOf(q.state) === k);
+  return seq ? { seq, why: entry[1] } : null;
+}
+// Rank the legal plays: a quick evaluation picks a shortlist, then each is tested against every reply.
+function rankPlays(s, pl, r, shortlist = 6) {
+  const seqs = allSequences(s, pl, r);
+  if (!seqs.length) return [];
+  for (const q of seqs) q.quick = evalSym(q.state, pl);
+  seqs.sort((a, b) => b.quick - a.quick);
+  const book = bookPlay(s, pl, r, seqs);
+  const top = seqs.slice(0, shortlist);
+  if (book && !top.includes(book.seq)) top.push(book.seq);
+  for (const q of top) q.score = plyScore(q.state, pl);
+  top.sort((a, b) => b.score - a.score);
+  if (book) {
+    top.splice(top.indexOf(book.seq), 1);
+    book.seq.score = Math.max(book.seq.score, top.length ? top[0].score + 0.01 : 0);
+    book.seq.book = book.why;
+    top.unshift(book.seq);
+  }
+  return top;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Coach: notation, exposure counts and plain-English descriptions    *
+ * ------------------------------------------------------------------ */
+const ptName = (pl, x) => (x === 'bar' ? 'bar' : x === 'off' ? 'off' : String(pl === W ? x : 25 - x));
+// Standard notation; one checker moving on through several dice is written once (13/11 11/10 → 13/10).
+function notation(moves, pl) {
+  const parts = [];
+  for (const m of moves) {
+    const prev = parts[parts.length - 1];
+    if (prev && prev.to === m.from && !prev.ended) { prev.to = m.to; prev.path.push(`${ptName(pl, m.to)}${m.hit ? '*' : ''}`); }
+    else parts.push({ to: m.to, path: [ptName(pl, m.from), `${ptName(pl, m.to)}${m.hit ? '*' : ''}`] });
+    if (m.to === 'off') parts[parts.length - 1].ended = true;
+  }
+  return parts.map((x) => (x.path.length > 2 && !x.path.slice(1, -1).some((t) => t.endsWith('*')) ? [x.path[0], x.path[x.path.length - 1]] : x.path).join('/')).join(' ');
+}
+// How many of the 36 rolls let the opponent hit my blot on absolute point `target`.
+function shotsAt(s, pl, target) {
+  const op = -pl, oq = (a) => (op === W ? a : 25 - a), tq = oq(target);
+  const srcs = [];
+  for (let a = 1; a <= 24; a++) if (s.pts[a] * op > 0) srcs.push(oq(a));
+  if (s.bar[sideKey(op)]) srcs.push(25);
+  const open = (q) => q >= 1 && s.pts[toAbs(op, q)] * pl < 2;
+  let n = 0;
+  for (let d1 = 1; d1 <= 6; d1++) for (let d2 = 1; d2 <= 6; d2++) {
+    let hit = false;
+    for (const q of srcs) {
+      const dist = q - tq;
+      if (dist <= 0) continue;
+      if (d1 === d2) {
+        for (let j = 1; j <= 4; j++) { const pos = q - d1 * j; if (pos === tq) { hit = true; break; } if (pos < tq || !open(pos)) break; }
+      } else if (dist === d1 || dist === d2) hit = true;
+      else if (dist === d1 + d2 && (open(q - d1) || open(q - d2))) hit = true;
+      if (hit) break;
+    }
+    if (hit) n++;
+  }
+  return n;
+}
+function exposedBlots(s, pl) {
+  const res = [];
+  for (let a = 1; a <= 24; a++) if (s.pts[a] * pl === 1) { const n = shotsAt(s, pl, a); if (n) res.push({ q: pl === W ? a : 25 - a, shots: n }); }
+  return res.sort((x, y) => y.shots - x.shots);
+}
+function madePoints(s, pl) {
+  const set = new Set();
+  for (let a = 1; a <= 24; a++) if (s.pts[a] * pl >= 2) set.add(pl === W ? a : 25 - a);
+  return set;
+}
+function inContact(s, pl) {
+  let myBack = s.bar[sideKey(pl)] ? 25 : 0, opRear = s.bar[sideKey(-pl)] ? 0 : 25;
+  for (let q = 1; q <= 24; q++) {
+    const c = s.pts[toAbs(pl, q)] * pl;
+    if (c > 0) myBack = Math.max(myBack, q); else if (c < 0) opRear = Math.min(opRear, q);
+  }
+  return myBack > opRear;
+}
+const listJoin = (a) => (a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+const bestPlay = (s, pl, r) => rankPlays(s, pl, r)[0] || null;
+
+/* Why a play is good, in plain English, for the coach card. */
+function primeLen(s, pl) {
+  let run = 0, best = 0;
+  for (let q = 1; q <= 24; q++) { if (s.pts[toAbs(pl, q)] * pl >= 2) { run++; best = Math.max(best, run); } else run = 0; }
+  return best;
+}
+function backCount(s, pl) {
+  let n = s.bar[sideKey(pl)];
+  for (let q = 19; q <= 24; q++) n += Math.max(0, s.pts[toAbs(pl, q)] * pl);
+  return n;
+}
+const POINT_ORDER = [5, 7, 4, 20, 21, 6, 3, 18, 8, 9, 2, 10, 11, 19, 22, 1, 12, 23, 24, 13, 14, 15, 16, 17];
+function pointLesson(q) {
+  if (q === 5) return ['Makes the 5 point', 'Your 5 point is the most valuable point on the board. It blocks their back checkers and is the heart of your home board.'];
+  if (q === 7) return ['Makes the bar point', 'Your bar point (7) blocks every 6 from their back checkers and links your 8 and 6 points into a wall.'];
+  if (q === 4) return ['Makes the 4 point', 'After the 5, the 4 point is the best home board point to own.'];
+  if (q <= 6) return [`Makes the ${q} point`, 'Every home board point you own makes it harder for a checker you hit to come back in.'];
+  if (q === 20 || q === 21) return [`Advanced anchor on ${q}`, 'An anchor high in their home board is a safe landing spot your back checkers can always reach, and it is hard for them to attack.'];
+  if (q >= 18) return [`Anchor on ${q}`, 'Two checkers together in their home board can never be hit, so your back checkers always have somewhere safe.'];
+  return [`Makes the ${q} point`, 'A made point outside your home board is a safe stepping stone for checkers on the way in, and blocks their runners.'];
+}
+const DOT = { book: '#c9a35c', hit: '#ee8170', point: '#8fd18a', prime: '#8fd18a', anchor: '#8fd18a', escape: '#5fd4c4', safe: '#5fd4c4', risk: '#e8b45a', race: '#c9a35c', off: '#c9a35c', quiet: '#b5a68c' };
+function moveReasons(before, play, pl) {
+  const after = play.state, out = [];
+  if (play.book) out.push({ k: 'book', t: 'Opening book', x: play.book });
+  const hitQs = play.moves.filter((m) => m.hit).map((m) => (pl === W ? m.to : 25 - m.to));
+  if (hitQs.length) {
+    const lost = hitQs.reduce((a, q) => a + q, 0);
+    out.push({ k: 'hit', t: hitQs.length > 1 ? 'Double hit' : `Hits on ${hitQs[0]}`, x: `Sends ${hitQs.length > 1 ? 'two checkers' : 'their checker'} to the bar, costing them ${lost} pips. They must come back in before they can move anything else.` });
+  }
+  const mb = madePoints(before, pl), fresh = [...madePoints(after, pl)].filter((q) => !mb.has(q));
+  fresh.sort((a, b) => POINT_ORDER.indexOf(a) - POINT_ORDER.indexOf(b));
+  if (fresh.length && !play.book) { const [t, x] = pointLesson(fresh[0]); out.push({ k: fresh[0] >= 18 ? 'anchor' : 'point', t, x }); }
+  const pa = primeLen(after, pl);
+  if (pa >= 4 && pa > primeLen(before, pl)) out.push({ k: 'prime', t: `${pa}-point prime`, x: `${pa} points in a row make a wall that their back checkers can only jump with big rolls. A full 6-point prime cannot be crossed at all.` });
+  const contact = inContact(after, pl);
+  if (contact && backCount(after, pl) < backCount(before, pl) && !hitQs.length && !play.book) out.push({ k: 'escape', t: 'Escapes a back checker', x: 'Back checkers deep in their home board are the ones that get trapped. Moving one out in time keeps your game flexible.' });
+  const off = after.off[sideKey(pl)] - before.off[sideKey(pl)];
+  if (off) out.push({ k: 'off', t: `Bears off ${off}`, x: 'Removing checkers is the whole point of the race. Bear off whenever you can, and use spare pips to fill gaps when you cannot.' });
+  if (contact) {
+    const bl = exposedBlots(after, pl);
+    if (!bl.length) out.push({ k: 'safe', t: 'Nothing to hit', x: 'Every checker is on a made point or out of reach, so they have no shot at you next turn.' });
+    else {
+      const b = bl[0], cost = 25 - b.q;
+      const verdict = cost <= 7 ? `Being hit there only costs ${cost} pip${cost === 1 ? '' : 's'}, so the risk is cheap.`
+        : b.shots <= 13 ? `A hit would cost ${cost} pips, but few rolls do it: a risk worth taking for what the play builds.`
+        : `A hit would cost ${cost} pips. It is a real risk, accepted for what the play gains.`;
+      out.push({ k: 'risk', t: `Blot on ${b.q}`, x: `A lone checker on ${b.q} is hit by ${b.shots} of 36 rolls (${Math.round(b.shots / 0.36)}%). ${verdict}` });
+    }
+  } else if (!off) {
+    const d = pipCount(after, -pl) - pipCount(after, pl);
+    out.push({ k: 'race', t: inContact(before, pl) ? 'Breaks contact' : 'Pure race', x: `The armies have passed each other, so nothing can be hit any more. It is a race, and ${d >= 0 ? `you lead by ${d}` : `you trail by ${-d}`} pips.` });
+  }
+  if (!out.length) out.push({ k: 'quiet', t: 'Quiet move', x: 'Nothing dramatic: this keeps your checkers flexible and your position balanced.' });
+  return out.slice(0, 4);
+}
+// Short sentences on why the best play beats the one actually played.
+function compareReasons(before, best, mine, pl) {
+  const out = [];
+  // Risk weighs how often a blot is hit by how many pips the hit costs.
+  const risk = (bl) => bl.reduce((m, b) => (b.shots * (25 - b.q) > m.v ? { v: b.shots * (25 - b.q), b } : m), { v: 0, b: null });
+  const br = risk(exposedBlots(best.state, pl)), mr = risk(exposedBlots(mine.state, pl));
+  if (inContact(mine.state, pl) && mr.b && mr.v > br.v * 1.3 + 20) {
+    const m = mr.b;
+    out.push({ k: 'risk', t: 'Less risk', x: `Your blot on ${m.q} is hit by ${m.shots} of 36 rolls and a hit costs ${25 - m.q} pips. ${br.b ? `The best play's blot on ${br.b.q} costs only ${25 - br.b.q} if hit.` : 'The best play leaves nothing to hit.'}` });
+  }
+  const bh = best.moves.filter((m) => m.hit).length, mh = mine.moves.filter((m) => m.hit).length;
+  if (bh > mh) out.push({ k: 'hit', t: 'Hits', x: `The best play hits${bh > 1 ? ' twice' : ''}, sending them back; yours ${mh ? 'hits less' : 'does not hit'}.` });
+  const pb = madePoints(before, pl), nm = madePoints(mine.state, pl);
+  const missing = [...madePoints(best.state, pl)].filter((q) => !pb.has(q) && !nm.has(q)).sort((a, b) => POINT_ORDER.indexOf(a) - POINT_ORDER.indexOf(b));
+  if (missing.length) out.push({ k: 'point', t: `Makes the ${missing[0]} point`, x: `${pointLesson(missing[0])[1]} Your play does not make it.` });
+  if (backCount(mine.state, pl) > backCount(best.state, pl) && inContact(best.state, pl)) out.push({ k: 'escape', t: 'Gets a back checker moving', x: 'It moves a back checker out before it can be trapped.' });
+  if (best.book) out.push({ k: 'book', t: 'Opening book', x: best.book });
+  if (!out.length) out.push({ k: 'quiet', t: 'Better placed', x: 'The difference is positional: averaged over every reply your opponent could roll, the best play leaves you better off.' });
+  return out.slice(0, 3);
 }
 
 /* ------------------------------------------------------------------ *
@@ -556,13 +960,13 @@ try {
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.12;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0f0b09);
-scene.fog = new THREE.Fog(0x0f0b09, 34, 70);
+scene.background = new THREE.Color(0x0b0806);
+scene.fog = new THREE.Fog(0x0b0806, 70, 170);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 
@@ -574,25 +978,28 @@ controls.enablePan = false;
 controls.minPolarAngle = 0.05;
 controls.maxPolarAngle = 1.25;
 controls.minDistance = 8;
-controls.maxDistance = 48;
+controls.maxDistance = 50;
 camera.position.set(0.9, 15, 12);
 
-scene.add(new THREE.HemisphereLight(0xffe6c4, 0x1a120c, 0.45));
+scene.add(new THREE.HemisphereLight(0xffe6c4, 0x1a120c, 0.2));
 const lamp = new THREE.SpotLight(0xffdcae, 2.6, 0, 0.62, 0.55, 0);
-lamp.position.set(2.5, 17, 7);
-lamp.target.position.set(0.9, 0, 0);
+lamp.position.set(1.5, 21.2, 2.5);
+lamp.target.position.set(0.9, 0, 0.3);
+lamp.angle = 0.7; lamp.penumbra = 0.65;
 lamp.castShadow = true;
 lamp.shadow.mapSize.set(2048, 2048);
 lamp.shadow.bias = -0.0004;
 lamp.shadow.normalBias = 0.02;
 lamp.shadow.camera.near = 6;
-lamp.shadow.camera.far = 32;
+lamp.shadow.camera.near = 8;
+lamp.shadow.camera.far = 50;
 scene.add(lamp, lamp.target);
-const fill = new THREE.DirectionalLight(0x9fb4d6, 0.25);
-fill.position.set(-10, 8, -6);
+// Cold moonlight from the window on the left wall.
+const fill = new THREE.DirectionalLight(0x8fa8d8, 0.22);
+fill.position.set(-30, 18, -8);
 scene.add(fill);
 
-let viewPortrait = null;
+let viewPortrait = null, tvMode = false, quality = 'high';
 function fitView() {
   const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
   renderer.setSize(w, h, false);
@@ -601,7 +1008,7 @@ function fitView() {
   // On a tall screen, look along the board so its long side runs down the screen.
   const portrait = camera.aspect < 0.85;
   const vf = THREE.MathUtils.degToRad(camera.fov) / 2, hf = Math.atan(Math.tan(vf) * camera.aspect);
-  const [halfW, halfH] = portrait ? [6.8, 9.8] : [9.6, 8.2];
+  const [halfW, halfH] = portrait ? [7.2, 10.2] : tvMode ? [10.2, 9.6] : [10.4, 8.8];
   const d = Math.max(halfW / Math.tan(hf), halfH / Math.tan(vf)) + 1.5;
   let dir;
   if (portrait !== viewPortrait) {
@@ -610,9 +1017,19 @@ function fitView() {
     dir = portrait ? new THREE.Vector3(Math.sin(polar), Math.cos(polar), 0) : new THREE.Vector3(0, Math.cos(polar), Math.sin(polar));
   } else dir = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(dir, d);
-  controls.maxDistance = Math.max(48, d * 1.4);
-  scene.fog.near = d * 1.6; scene.fog.far = d * 3.5;
+  controls.maxDistance = Math.min(50, Math.max(40, d * 1.5));
+  renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio, 2) : 1);
+  renderer.setSize(w, h, false);
+  if (composer) { composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); composer.setSize(w, h); }
 }
+// Bloom so the lamp, the fire and the move highlights glow.
+let composer = null;
+try {
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(512, 512), 0.5, 0.6, 2.1));
+  composer.addPass(new OutputPass());
+} catch (err) { composer = null; }
 window.addEventListener('resize', fitView);
 
 /* ------------------------------------------------------------------ *
@@ -706,9 +1123,6 @@ function meshBox(x0, x1, y0, y1, z0, z1, mat) {
  *  The board                                                          *
  * ------------------------------------------------------------------ */
 const ZO = HZ + FT;
-const table = new THREE.Mesh(new THREE.PlaneGeometry(80, 60), new THREE.MeshStandardMaterial({ map: tableTex, roughness: 0.7, envMapIntensity: 0.2 }));
-table.rotation.x = -Math.PI / 2; table.position.y = -0.36; table.receiveShadow = true;
-scene.add(table);
 meshBox(LEFT_X, OUTER_X, -0.36, -0.02, -ZO, ZO, woodMatX);
 for (const [x0, x1] of [[-HX, HX], [TRAY_X0, TRAY_X1]]) {
   const f = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 2 * HZ), feltMat);
@@ -768,12 +1182,65 @@ for (const s of [W, B]) {
   scene.add(ov);
   overlays['off' + s] = ov;
 }
+const glowMat = (color) => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(2.6), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+// Landing rings on the felt, bouncing arrows above each destination, and halos on movable checkers.
 const rings = Array.from({ length: 16 }, () => {
-  const m = new THREE.Mesh(new THREE.RingGeometry(R * 0.78, R * 0.95, 40), new THREE.MeshBasicMaterial({ color: 0xffe2a8, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
+  const m = new THREE.Mesh(new THREE.RingGeometry(R * 0.5, R * 1.04, 48), glowMat(0xffd27a));
   m.rotation.x = -Math.PI / 2; m.visible = false;
   scene.add(m);
   return m;
 });
+const arrowGeo = new THREE.ConeGeometry(0.2, 0.44, 24);
+arrowGeo.rotateX(Math.PI);
+const arrows = Array.from({ length: 16 }, () => {
+  const m = new THREE.Mesh(arrowGeo, glowMat(0xffc85c));
+  m.visible = false; m.userData.base = new THREE.Vector3();
+  scene.add(m);
+  return m;
+});
+const halos = Array.from({ length: 16 }, () => {
+  const m = new THREE.Mesh(new THREE.RingGeometry(R * 0.36, R * 0.9, 48), glowMat(0xffd27a));
+  m.rotation.x = -Math.PI / 2; m.visible = false; m.userData.id = -1;
+  m.renderOrder = 2;
+  scene.add(m);
+  return m;
+});
+// Coach's suggested move, drawn as numbered teal arcs.
+const hintGroup = new THREE.Group();
+scene.add(hintGroup);
+const hintMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x5fd4c4).multiplyScalar(2.2), transparent: true, opacity: 0.9, toneMapped: false, depthWrite: false });
+const ghostMat = new THREE.MeshStandardMaterial({ color: 0x5fd4c4, emissive: 0x5fd4c4, emissiveIntensity: 0.9, transparent: true, opacity: 0.6, depthWrite: false, roughness: 0.4 });
+// Soft round dot used for sparkles, embers and dust.
+const dotTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const bursts = [];
+function sparkle(pos, color = 0xffd27a, n = 46) {
+  const geo = new THREE.BufferGeometry(), arr = new Float32Array(n * 3), vel = [];
+  for (let i = 0; i < n; i++) {
+    arr.set([pos.x, pos.y + 0.2, pos.z], i * 3);
+    const a = Math.random() * Math.PI * 2, sp = rand(1.2, 4.2);
+    vel.push(new THREE.Vector3(Math.cos(a) * sp, rand(3, 7), Math.sin(a) * sp));
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.3, map: dotTex, color: new THREE.Color(color).multiplyScalar(3), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  scene.add(pts);
+  bursts.push({ pts, vel, t: 0 });
+}
+function updateBursts(dt) {
+  for (let i = bursts.length - 1; i >= 0; i--) {
+    const b = bursts[i], arr = b.pts.geometry.attributes.position.array;
+    b.t += dt;
+    b.vel.forEach((v, j) => { v.y -= 9 * dt; arr[j * 3] += v.x * dt; arr[j * 3 + 1] += v.y * dt; arr[j * 3 + 2] += v.z * dt; });
+    b.pts.geometry.attributes.position.needsUpdate = true;
+    b.pts.material.opacity = Math.max(0, 1 - b.t / 1.3);
+    if (b.t > 1.3) { scene.remove(b.pts); b.pts.geometry.dispose(); b.pts.material.dispose(); bursts.splice(i, 1); }
+  }
+}
 
 // Point numbers along the frame, as on a tournament board.
 function makeLabels() {
@@ -817,6 +1284,356 @@ function pickBox(x, z, sx, sz, loc) {
 for (let p = 1; p <= 24; p++) pickBox(colX(pointCol(p)), (p <= 12 ? 1 : -1) * (HZ - 2.7), 1, 5.4, p);
 pickBox(0, 0, 1, 2 * HZ, 'bar');
 pickBox(TRAY_X, 0, 1.2, 2 * HZ, 'off');
+
+/* ------------------------------------------------------------------ *
+ *  The room: a card table under a pendant lamp, by the fire           *
+ *  (1 unit ≈ 4 cm, so the floor is 78 cm below the table top)         *
+ * ------------------------------------------------------------------ */
+const FLOOR_Y = -19.5, CEIL_Y = 46, RX = 66, RZ = 56, WALL_H = CEIL_Y - FLOOR_Y;
+const roomMat = (opts) => new THREE.MeshStandardMaterial({ roughness: 0.85, envMapIntensity: 0.12, ...opts });
+function addMesh(geo, mat, x, y, z, { cast = true, rx = 0, ry = 0, rz = 0 } = {}) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
+  m.castShadow = cast; m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+const boxAt = (w, h, d, mat, x, y, z, cast = true) => addMesh(new THREE.BoxGeometry(w, h, d), mat, x, y, z, { cast });
+const diamond = (g, x, y, r) => { g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r); g.lineTo(x - r, y); g.closePath(); };
+function speckle(g, w, h, n, color, alpha) {
+  g.globalAlpha = alpha; g.fillStyle = color;
+  for (let i = 0; i < n; i++) g.fillRect(srand() * w, srand() * h, 1 + srand() * 2, 1 + srand() * 2);
+  g.globalAlpha = 1;
+}
+
+// Floorboards
+const plankTex = canvasTex(1024, 1024, (g, w, h) => {
+  const n = 8, pw = w / n, tones = ['#3b2617', '#442c1b', '#352214', '#4a301d', '#3f2818'];
+  for (let i = 0; i < n; i++) {
+    let y = -srand() * h * 0.6;
+    while (y < h) {
+      const len = h * (0.35 + srand() * 0.5);
+      g.save(); g.beginPath(); g.rect(i * pw, y, pw, len); g.clip();
+      g.fillStyle = tones[Math.floor(srand() * tones.length)]; g.fillRect(i * pw, y, pw, len);
+      for (let k = 0; k < 22; k++) {
+        const x0 = i * pw + srand() * pw, amp = srand() * 4;
+        g.strokeStyle = srand() < 0.6 ? '#20130a' : '#5c3e27'; g.globalAlpha = 0.12 + srand() * 0.25; g.lineWidth = 0.6 + srand() * 1.6;
+        g.beginPath();
+        for (let yy = y; yy <= y + len; yy += 10) { const xx = x0 + Math.sin(yy * 0.02 + k) * amp; if (yy === y) g.moveTo(xx, yy); else g.lineTo(xx, yy); }
+        g.stroke();
+      }
+      g.globalAlpha = 1; g.restore();
+      g.fillStyle = '#0f0804'; g.fillRect(i * pw, y, pw, 3);
+      y += len;
+    }
+    g.fillStyle = '#0c0603'; g.fillRect(i * pw, 0, 3, h);
+  }
+}, { repeat: [4, 4] });
+const floor = addMesh(new THREE.PlaneGeometry(2 * RX, 2 * RZ), new THREE.MeshPhysicalMaterial({ map: plankTex, roughness: 0.55, clearcoat: 0.35, clearcoatRoughness: 0.4, envMapIntensity: 0.15 }), 0, FLOOR_Y, 0, { cast: false, rx: -Math.PI / 2 });
+
+// Persian-style rug under the table
+const rugTex = canvasTex(1024, 768, (g, w, h) => {
+  g.fillStyle = '#4c1515'; g.fillRect(0, 0, w, h);
+  const band = (inset, color, lw) => { g.strokeStyle = color; g.lineWidth = lw; g.strokeRect(inset, inset, w - 2 * inset, h - 2 * inset); };
+  band(22, '#1a2137', 36); band(50, '#a8834a', 5); band(78, '#1a2137', 28); band(100, '#a8834a', 3);
+  g.fillStyle = '#a8834a';
+  for (let x = 46; x < w - 30; x += 36) { diamond(g, x, 22, 8); g.fill(); diamond(g, x, h - 22, 8); g.fill(); }
+  for (let y = 46; y < h - 30; y += 36) { diamond(g, 22, y, 8); g.fill(); diamond(g, w - 22, y, 8); g.fill(); }
+  g.strokeStyle = 'rgba(20, 8, 8, 0.45)'; g.lineWidth = 2;
+  for (let x = 140; x < w - 120; x += 52) for (let y = 140; y < h - 120; y += 52) { diamond(g, x, y, 14); g.stroke(); }
+  g.save(); g.translate(w / 2, h / 2);
+  g.fillStyle = '#1a2137'; g.beginPath(); g.ellipse(0, 0, 240, 170, 0, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#a8834a'; g.lineWidth = 6; g.stroke();
+  g.fillStyle = '#6e211d'; g.beginPath(); g.ellipse(0, 0, 160, 108, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#a8834a'; diamond(g, 0, 0, 46); g.fill();
+  g.fillStyle = '#1a2137'; diamond(g, 0, 0, 24); g.fill();
+  g.restore();
+  speckle(g, w, h, 26000, '#000', 0.18); speckle(g, w, h, 9000, '#d9b98a', 0.06);
+});
+addMesh(new THREE.PlaneGeometry(64, 46), roomMat({ map: rugTex, roughness: 1 }), 0.9, FLOOR_Y + 0.03, 0.3, { cast: false, rx: -Math.PI / 2 });
+
+// Walls: damask paper above walnut panelling
+const paperTex = canvasTex(256, 256, (g, w, h) => {
+  g.fillStyle = '#1b2923'; g.fillRect(0, 0, w, h);
+  const motif = (cx, cy) => {
+    g.beginPath(); g.ellipse(cx, cy, 24, 42, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.beginPath(); g.ellipse(cx, cy - 54, 9, 13, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+    for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(cx + sx * 30, cy - 18, 8, 20, sx * 0.6, 0, Math.PI * 2); g.fill(); g.stroke(); }
+  };
+  g.fillStyle = '#22342c'; g.strokeStyle = 'rgba(176, 138, 74, 0.2)'; g.lineWidth = 1.4;
+  motif(64, 128); motif(192, 0); motif(192, 256);
+  speckle(g, w, h, 2500, '#000', 0.12);
+}, { repeat: [12, 4] });
+const paperMat = roomMat({ map: paperTex });
+const panelMat = new THREE.MeshPhysicalMaterial({ map: canvasTex(1024, 256, woodDraw('#3a2416', '#1b1008', '#533521')), roughness: 0.5, clearcoat: 0.3, envMapIntensity: 0.15 });
+const WAIN = 24;
+for (const [x, z, ry, len] of [[0, -RZ, 0, 2 * RX], [0, RZ, Math.PI, 2 * RX], [-RX, 0, Math.PI / 2, 2 * RZ], [RX, 0, -Math.PI / 2, 2 * RZ]]) {
+  addMesh(new THREE.PlaneGeometry(len, WALL_H - WAIN), paperMat, x, FLOOR_Y + WAIN + (WALL_H - WAIN) / 2, z, { cast: false, ry });
+  const nx = Math.sin(ry), nz = Math.cos(ry);
+  addMesh(new THREE.BoxGeometry(len, WAIN, 0.6), panelMat, x + nx * 0.3, FLOOR_Y + WAIN / 2, z + nz * 0.3, { cast: false, ry });
+  addMesh(new THREE.BoxGeometry(len, 1, 1.4), panelMat, x + nx * 0.7, FLOOR_Y + WAIN, z + nz * 0.7, { cast: false, ry });
+  addMesh(new THREE.BoxGeometry(len, 2.2, 1), panelMat, x + nx * 0.5, FLOOR_Y + 1.1, z + nz * 0.5, { cast: false, ry });
+  for (let u = -len / 2 + 7; u < len / 2 - 4; u += 12) {
+    addMesh(new THREE.BoxGeometry(9, WAIN - 9, 0.4), panelMat, x + nx * 0.75 + Math.cos(ry) * u, FLOOR_Y + WAIN / 2 + 0.5, z + nz * 0.75 - Math.sin(ry) * u, { cast: false, ry });
+  }
+}
+addMesh(new THREE.PlaneGeometry(2 * RX, 2 * RZ), roomMat({ color: 0x1a1410 }), 0, CEIL_Y, 0, { cast: false, rx: Math.PI / 2 });
+
+// The card table
+const tableMat = new THREE.MeshPhysicalMaterial({ map: tableTex, roughness: 0.32, clearcoat: 0.85, clearcoatRoughness: 0.18, envMapIntensity: 0.3 });
+const TCX = 0.9, TCZ = 0.3;
+addMesh(new RoundedBoxGeometry(36, 1.2, 28, 4, 0.45), tableMat, TCX, -0.36 - 0.6, TCZ);
+for (const [w, d, x, z] of [[32, 0.8, 0, 12.2], [32, 0.8, 0, -12.2], [0.8, 24, 15.6, 0], [0.8, 24, -15.6, 0]]) boxAt(w, 2.4, d, tableMat, TCX + x, -2.76, TCZ + z);
+const legGeo = new THREE.LatheGeometry([[0.01, 0], [0.75, 0], [0.9, 0.6], [0.6, 1.4], [0.55, 6], [0.95, 8], [0.95, 9.2], [0.6, 10.4], [0.75, 14.4], [0.95, 15.6], [0.95, 17.4], [0.01, 17.4]].map(([r, y]) => new THREE.Vector2(r, y)), 28);
+for (const [x, z] of [[15.2, 11.8], [-15.2, 11.8], [15.2, -11.8], [-15.2, -11.8]]) addMesh(legGeo, tableMat, TCX + x, FLOOR_Y, TCZ + z);
+
+// Pendant lamp over the table
+const lampX = lamp.position.x, lampZ = lamp.position.z, lampY = 23;
+addMesh(new THREE.CylinderGeometry(0.07, 0.07, CEIL_Y - lampY - 2, 6), roomMat({ color: 0x111111 }), lampX, (CEIL_Y + lampY + 2) / 2, lampZ, { cast: false });
+const shadeGeo = new THREE.LatheGeometry([[0.6, 3.2], [1.1, 3], [2.4, 2], [4.2, 0.6], [5.0, 0]].map(([r, y]) => new THREE.Vector2(r, y)), 48);
+addMesh(shadeGeo, new THREE.MeshStandardMaterial({ color: 0x1d3a2c, metalness: 0.35, roughness: 0.35, side: THREE.FrontSide }), lampX, lampY - 1, lampZ, { cast: false });
+addMesh(shadeGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.25, 0.85), side: THREE.BackSide, toneMapped: false }), lampX, lampY - 1, lampZ, { cast: false });
+addMesh(new THREE.SphereGeometry(0.85, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 7, 4.6), toneMapped: false }), lampX, lampY - 0.5, lampZ, { cast: false });
+addMesh(new THREE.CylinderGeometry(0.5, 0.7, 0.8, 16), brassMat, lampX, lampY + 2.4, lampZ, { cast: false });
+
+// Flame texture shared by the fire and the candle
+const flameTex = (() => {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 256;
+  const g = c.getContext('2d'), gr = g.createLinearGradient(0, 256, 0, 0);
+  gr.addColorStop(0, 'rgba(255,250,220,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.95)'); gr.addColorStop(0.6, 'rgba(255,110,30,0.6)'); gr.addColorStop(1, 'rgba(200,40,10,0)');
+  g.fillStyle = gr; g.beginPath(); g.moveTo(64, 0);
+  g.bezierCurveTo(100, 90, 128, 160, 112, 210); g.bezierCurveTo(100, 250, 28, 250, 16, 210); g.bezierCurveTo(0, 160, 28, 90, 64, 0); g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const flameMat = (k) => new THREE.SpriteMaterial({ map: flameTex, color: new THREE.Color(k, k * 0.8, k * 0.55), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+
+// Table dressing: a candle, a glass of whisky and the dice cup
+const candle = { x: TCX - 10.6, z: TCZ + 0.4 };
+addMesh(new THREE.LatheGeometry([[0.01, 0], [1.1, 0], [1.15, 0.15], [0.5, 0.35], [0.35, 1.2], [0.6, 1.5], [0.55, 1.65], [0.01, 1.65]].map(([r, y]) => new THREE.Vector2(r, y)), 32), brassMat, candle.x, -0.36, candle.z);
+addMesh(new THREE.CylinderGeometry(0.42, 0.45, 2, 24), new THREE.MeshStandardMaterial({ color: 0x7d705e, roughness: 0.75, emissive: 0xff9a40, emissiveIntensity: 0.05 }), candle.x, -0.36 + 1.65 + 1, candle.z);
+const candleFlame = new THREE.Sprite(flameMat(5)); candleFlame.scale.set(0.42, 1.0, 1);
+candleFlame.position.set(candle.x, -0.36 + 1.65 + 2 + 0.48, candle.z); scene.add(candleFlame);
+const candleLight = new THREE.PointLight(0xffa452, 1.6, 30, 1.6);
+candleLight.position.set(candle.x, 4.4, candle.z); scene.add(candleLight);
+const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, roughness: 0.04, metalness: 0, clearcoat: 1, envMapIntensity: 1.2, side: THREE.DoubleSide, depthWrite: false });
+const glass = { x: TCX + 10.4, z: TCZ - 4.4 };
+addMesh(new THREE.CylinderGeometry(0.85, 0.78, 2.1, 32, 1, true), glassMat, glass.x, -0.36 + 1.05, glass.z, { cast: false });
+addMesh(new THREE.CylinderGeometry(0.78, 0.78, 0.3, 32), glassMat, glass.x, -0.36 + 0.15, glass.z, { cast: false });
+addMesh(new THREE.CylinderGeometry(0.76, 0.74, 0.7, 32), new THREE.MeshPhysicalMaterial({ color: 0xa4561a, transparent: true, opacity: 0.8, roughness: 0.1, clearcoat: 1, envMapIntensity: 0.8 }), glass.x, -0.36 + 0.66, glass.z, { cast: false });
+addMesh(new RoundedBoxGeometry(0.6, 0.55, 0.6, 2, 0.1), new THREE.MeshPhysicalMaterial({ color: 0xe8f0f4, transparent: true, opacity: 0.45, roughness: 0.15 }), glass.x + 0.15, -0.36 + 1.0, glass.z, { cast: false, ry: 0.5 });
+const leather = roomMat({ map: noiseTex(70, 40, 24, 12, [2, 2]), roughness: 0.6 });
+const cupGeo = new THREE.LatheGeometry([[1.25, 0], [1.3, 0.2], [1.1, 3.4], [1.0, 3.4], [1.15, 0.25], [0.01, 0.25]].map(([r, y]) => new THREE.Vector2(r, y)), 36);
+cupGeo.translate(0, -1.7, 0);
+addMesh(cupGeo, new THREE.MeshStandardMaterial({ map: leather.map, roughness: 0.6, side: THREE.DoubleSide }), TCX + 11.2, -0.36 + 1.2, TCZ + 1.6, { rz: Math.PI / 2, ry: 0.9 });
+
+// Fireplace on the back wall
+const FX = -20, FZ = -RZ;
+const brickTex = canvasTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#24170f'; g.fillRect(0, 0, w, h);
+  const bh = 32, bw = 96;
+  for (let r = 0; r < h / bh; r++) for (let c = -1; c < w / bw + 1; c++) {
+    const x = c * bw + (r % 2) * (bw / 2), y = r * bh, v = srand();
+    g.fillStyle = `rgb(${92 + v * 40},${44 + v * 18},${30 + v * 10})`;
+    g.fillRect(x + 3, y + 3, bw - 6, bh - 6);
+  }
+  speckle(g, w, h, 9000, '#000', 0.2);
+}, { repeat: [3, 3] });
+const brickMat = roomMat({ map: brickTex, roughness: 0.95 });
+const stoneMat = roomMat({ map: noiseTex(64, 60, 56, 14, [3, 1]), roughness: 0.8 });
+const darkWood = new THREE.MeshPhysicalMaterial({ map: canvasTex(1024, 256, woodDraw('#2e1c11', '#140b05', '#43291a')), roughness: 0.45, clearcoat: 0.4, envMapIntensity: 0.2 });
+boxAt(36, 31, 3, brickMat, FX, FLOOR_Y + 15.5, FZ + 1.5, false);
+boxAt(17, 14, 0.2, roomMat({ color: 0x050302, roughness: 1 }), FX, FLOOR_Y + 8, FZ + 3.05, false);
+boxAt(42, 1.4, 9, stoneMat, FX, FLOOR_Y + 0.7, FZ + 4.5, false);
+boxAt(42, 1.6, 6.5, darkWood, FX, FLOOR_Y + 31.8, FZ + 3.2);
+for (const sx of [-1, 1]) boxAt(2.2, 30, 4, darkWood, FX + sx * 17.5, FLOOR_Y + 16, FZ + 3.2);
+const logMat = roomMat({ color: 0x2a1a10, roughness: 1, emissive: 0xff4a10, emissiveIntensity: 0.25 });
+for (const [x, y, z, rz, ry] of [[-2, 2.2, 5.6, Math.PI / 2, 0.15], [2.2, 2.2, 5.2, Math.PI / 2, -0.2], [0, 3.6, 5.4, Math.PI / 2, 0.05]]) {
+  addMesh(new THREE.CylinderGeometry(0.85, 0.95, 11, 12), logMat, FX + x, FLOOR_Y + y, FZ + z, { rz, ry, cast: false });
+}
+const flames = Array.from({ length: 9 }, (_, i) => {
+  const sp = new THREE.Sprite(flameMat(rand(2.4, 3.6)));
+  const base = new THREE.Vector3(FX + (i - 4) * 1.15 + rand(-0.4, 0.4), FLOOR_Y + 3.4, FZ + 5.6 + rand(-0.4, 0.4));
+  const size = rand(2.6, 4.2);
+  sp.position.copy(base); scene.add(sp);
+  return { sp, base, size, ph: rand(0, 100), sp2: rand(5, 9) };
+});
+const fireLight = new THREE.PointLight(0xff7a2c, 34, 170, 1.15);
+fireLight.position.set(FX, FLOOR_Y + 7, FZ + 9);
+scene.add(fireLight);
+const EMBERS = 60;
+const emberGeo = new THREE.BufferGeometry();
+emberGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(EMBERS * 3), 3));
+const emberLife = Array.from({ length: EMBERS }, () => ({ t: rand(0, 3), life: rand(1.6, 3.4), vx: rand(-0.4, 0.4), vz: rand(-0.2, 0.3), x0: rand(-4, 4) }));
+const emberPts = new THREE.Points(emberGeo, new THREE.PointsMaterial({ size: 0.28, map: dotTex, color: new THREE.Color(4, 1.6, 0.4), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+scene.add(emberPts);
+
+// Painting above the mantel, and a mantel clock that keeps the real time
+const paintTex = canvasTex(512, 320, (g, w, h) => {
+  const sky = g.createLinearGradient(0, 0, 0, h * 0.7);
+  sky.addColorStop(0, '#1c2433'); sky.addColorStop(0.6, '#6d4a37'); sky.addColorStop(1, '#c08a52');
+  g.fillStyle = sky; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#2a1f19'; g.beginPath(); g.moveTo(0, h * 0.7);
+  for (let x = 0; x <= w; x += 16) g.lineTo(x, h * 0.62 - Math.sin(x * 0.012) * 26 - srand() * 8);
+  g.lineTo(w, h); g.lineTo(0, h); g.fill();
+  g.fillStyle = '#16110d'; g.fillRect(0, h * 0.8, w, h * 0.2);
+  g.fillStyle = 'rgba(255, 210, 140, 0.8)'; g.beginPath(); g.arc(w * 0.72, h * 0.5, 14, 0, Math.PI * 2); g.fill();
+  speckle(g, w, h, 6000, '#000', 0.15);
+});
+boxAt(25, 16.5, 0.8, brassMat, FX, FLOOR_Y + 44, FZ + 0.5, false);
+addMesh(new THREE.PlaneGeometry(23, 14.5), roomMat({ map: paintTex, roughness: 0.7 }), FX, FLOOR_Y + 44, FZ + 0.95, { cast: false });
+const clockCanvas = document.createElement('canvas'); clockCanvas.width = clockCanvas.height = 256;
+const clockTex = new THREE.CanvasTexture(clockCanvas); clockTex.colorSpace = THREE.SRGBColorSpace;
+function drawClock() {
+  const g = clockCanvas.getContext('2d'), d = new Date();
+  g.fillStyle = '#ece0c4'; g.fillRect(0, 0, 256, 256);
+  g.save(); g.translate(128, 128);
+  g.strokeStyle = '#2a1d14';
+  for (let i = 0; i < 60; i++) { g.lineWidth = i % 5 ? 2 : 6; g.beginPath(); g.moveTo(0, -112); g.lineTo(0, i % 5 ? -104 : -92); g.stroke(); g.rotate(Math.PI / 30); }
+  const hand = (ang, len, wd) => { g.save(); g.rotate(ang); g.lineWidth = wd; g.lineCap = 'round'; g.beginPath(); g.moveTo(0, 14); g.lineTo(0, -len); g.stroke(); g.restore(); };
+  const sec = d.getSeconds(), min = d.getMinutes() + sec / 60, hr = (d.getHours() % 12) + min / 60;
+  hand((hr / 12) * Math.PI * 2, 58, 9); hand((min / 60) * Math.PI * 2, 88, 6);
+  g.strokeStyle = '#8c2f2b'; hand((sec / 60) * Math.PI * 2, 96, 2.5);
+  g.restore();
+  clockTex.needsUpdate = true;
+}
+const clockX = FX + 12, clockY = FLOOR_Y + 32.6;
+addMesh(new RoundedBoxGeometry(4.6, 5.6, 2.4, 3, 0.4), darkWood, clockX, clockY + 2.8, FZ + 3.4);
+addMesh(new THREE.CircleGeometry(1.55, 48), new THREE.MeshStandardMaterial({ map: clockTex, roughness: 0.5 }), clockX, clockY + 3.3, FZ + 4.62, { cast: false });
+addMesh(new THREE.TorusGeometry(1.6, 0.14, 12, 48), brassMat, clockX, clockY + 3.3, FZ + 4.62, { cast: false });
+drawClock();
+
+// Window on the left wall: night sky, rain, velvet curtains
+const WZ = -4, WY = FLOOR_Y + 36, WW = 20, WH = 26;
+const nightTex = canvasTex(256, 384, (g, w, h) => {
+  const sky = g.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#0a1222'); sky.addColorStop(1, '#1c2b44');
+  g.fillStyle = sky; g.fillRect(0, 0, w, h);
+  const moon = g.createRadialGradient(170, 90, 4, 170, 90, 70);
+  moon.addColorStop(0, 'rgba(230, 236, 255, 0.95)'); moon.addColorStop(0.18, 'rgba(200, 214, 240, 0.6)'); moon.addColorStop(1, 'rgba(120, 140, 190, 0)');
+  g.fillStyle = moon; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#05080f'; g.beginPath(); g.moveTo(0, h);
+  for (let x = 0; x <= w; x += 12) g.lineTo(x, h * 0.78 - srand() * 30 - Math.sin(x * 0.05) * 14);
+  g.lineTo(w, h); g.fill();
+  speckle(g, w, h * 0.6, 120, '#cfd8ff', 0.6);
+});
+addMesh(new THREE.PlaneGeometry(WW, WH), new THREE.MeshBasicMaterial({ map: nightTex, color: new THREE.Color(0.9, 0.95, 1.2) }), -RX + 0.6, WY, WZ, { cast: false, ry: Math.PI / 2 });
+const rainTex = canvasTex(128, 256, (g, w, h) => {
+  g.clearRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(200, 220, 255, 0.35)';
+  for (let i = 0; i < 60; i++) { const x = srand() * w, y = srand() * h, l = 6 + srand() * 22; g.lineWidth = 0.6 + srand(); g.beginPath(); g.moveTo(x, y); g.lineTo(x + 1, y + l); g.stroke(); }
+}, { repeat: [3, 2] });
+const rainPane = addMesh(new THREE.PlaneGeometry(WW, WH), new THREE.MeshBasicMaterial({ map: rainTex, transparent: true, depthWrite: false }), -RX + 0.75, WY, WZ, { cast: false, ry: Math.PI / 2 });
+for (const [dy, dz, h, d] of [[WH / 2 + 0.6, 0, 1.2, WW + 2.4], [-WH / 2 - 0.6, 0, 1.2, WW + 2.4], [0, WW / 2 + 0.6, WH, 1.2], [0, -WW / 2 - 0.6, WH, 1.2], [0, 0, WH, 0.5], [0, 0, 0.5, WW]]) {
+  boxAt(1.2, h, d, darkWood, -RX + 0.8, WY + dy, WZ + dz, false);
+}
+boxAt(3.2, 0.9, WW + 4, darkWood, -RX + 1.6, WY - WH / 2 - 1.2, WZ, false);
+const velvetTex = canvasTex(256, 64, (g, w, h) => {
+  for (let x = 0; x < w; x++) { const v = 0.5 + 0.5 * Math.sin(x * 0.18) * Math.sin(x * 0.043 + 1); g.fillStyle = `rgb(${50 + v * 70},${10 + v * 14},${14 + v * 14})`; g.fillRect(x, 0, 1, h); }
+});
+const velvet = roomMat({ map: velvetTex, roughness: 0.9, side: THREE.DoubleSide });
+for (const sz of [-1, 1]) addMesh(new THREE.PlaneGeometry(8, WALL_H - 4), velvet, -RX + 2.4, FLOOR_Y + (WALL_H - 4) / 2, WZ + sz * (WW / 2 + 2.5), { cast: false, ry: Math.PI / 2 });
+boxAt(0.6, 0.6, WW + 22, brassMat, -RX + 2.6, FLOOR_Y + WALL_H - 3.6, WZ, false);
+
+// Bookcase on the right wall
+const BZ = -14, BW = 34, BHt = 50, BD = 6;
+const bx = RX - BD / 2 - 0.6;
+boxAt(BD, BHt, 0.9, darkWood, bx, FLOOR_Y + BHt / 2, BZ - BW / 2, false);
+boxAt(BD, BHt, 0.9, darkWood, bx, FLOOR_Y + BHt / 2, BZ + BW / 2, false);
+boxAt(BD, 1, BW + 1, darkWood, bx, FLOOR_Y + BHt, BZ, false);
+boxAt(0.4, BHt, BW, roomMat({ color: 0x140c07 }), RX - 0.8, FLOOR_Y + BHt / 2, BZ, false);
+const shelfYs = [1.5, 11, 20.5, 30, 39.5];
+for (const y of shelfYs) boxAt(BD, 0.8, BW, darkWood, bx, FLOOR_Y + y, BZ, false);
+const bookColors = [0x5b1d1a, 0x1f3a2c, 0x23304a, 0x6b4a22, 0x3a2416, 0x7a6a4a, 0x2e2420, 0x4a1f33];
+const books = [];
+for (const y of shelfYs) {
+  let z = BZ - BW / 2 + 1;
+  while (z < BZ + BW / 2 - 1.5) {
+    if (srand() < 0.06) { z += 2 + srand() * 3; continue; }
+    const t = 0.6 + srand() * 0.8, h = 5 + srand() * 3, d = 3.6 + srand() * 1.2;
+    books.push({ x: RX - 1 - d / 2, y: FLOOR_Y + y + 0.4 + h / 2, z: z + t / 2, t, h, d, c: bookColors[Math.floor(srand() * bookColors.length)], lean: srand() < 0.08 ? 0.15 : 0 });
+    z += t + 0.05;
+  }
+}
+const bookMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), roomMat({ roughness: 0.7 }), books.length);
+books.forEach((b, i) => {
+  const m = new THREE.Matrix4().compose(new THREE.Vector3(b.x, b.y, b.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), b.lean), new THREE.Vector3(b.d, b.h, b.t));
+  bookMesh.setMatrixAt(i, m);
+  bookMesh.setColorAt(i, new THREE.Color(b.c));
+});
+bookMesh.receiveShadow = true;
+scene.add(bookMesh);
+
+// Dust drifting through the lamp light
+const DUST = 220;
+const dustGeo = new THREE.BufferGeometry(), dustArr = new Float32Array(DUST * 3), dustSeed = [];
+for (let i = 0; i < DUST; i++) {
+  const a = rand(0, Math.PI * 2), r = Math.sqrt(Math.random()) * 8;
+  dustArr.set([lampX + Math.cos(a) * r, rand(1, 20), lampZ + Math.sin(a) * r], i * 3);
+  dustSeed.push(rand(0, 100));
+}
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dustArr, 3));
+const dustPts = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: 0.055, map: dotTex, color: new THREE.Color(1.5, 1.3, 1.0), transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+scene.add(dustPts);
+
+const flick = (t, ph) => 0.6 * Math.sin(t * 7.3 + ph) + 0.3 * Math.sin(t * 13.1 + ph * 2) + 0.2 * Math.sin(t * 23.7 + ph * 3);
+let clockSec = -1;
+function updateRoom(dt, now) {
+  const t = now / 1000;
+  for (const f of flames) {
+    const n = flick(t * (f.sp2 / 7), f.ph);
+    f.sp.scale.set(f.size * (0.55 + 0.08 * n), f.size * (1.1 + 0.22 * n), 1);
+    f.sp.position.set(f.base.x + 0.25 * Math.sin(t * 2.1 + f.ph), f.base.y + f.size * 0.5, f.base.z);
+    f.sp.material.opacity = 0.75 + 0.2 * n;
+  }
+  fireLight.intensity = 34 * (0.85 + 0.12 * flick(t, 1.3));
+  candleLight.intensity = 1.6 * (0.88 + 0.1 * flick(t * 1.4, 4.2));
+  candleFlame.scale.set(0.42 + 0.03 * flick(t * 2, 2), 1.0 + 0.1 * flick(t * 1.7, 5), 1);
+  candleFlame.position.x = candle.x + 0.03 * Math.sin(t * 3.1);
+  const ea = emberGeo.attributes.position.array;
+  emberLife.forEach((e, i) => {
+    e.t += dt;
+    if (e.t > e.life) { e.t = 0; e.life = rand(1.6, 3.4); e.x0 = rand(-4, 4); e.vx = rand(-0.4, 0.4); }
+    const u = e.t / e.life;
+    ea[i * 3] = FX + e.x0 + e.vx * e.t + 0.3 * Math.sin(t * 3 + i);
+    ea[i * 3 + 1] = FLOOR_Y + 3 + e.t * 3.2;
+    ea[i * 3 + 2] = FZ + 5.4 + e.vz * e.t;
+    if (u > 0.95) ea[i * 3 + 1] = -999;
+  });
+  emberGeo.attributes.position.needsUpdate = true;
+  for (let i = 0; i < DUST; i++) {
+    const k = i * 3, sd = dustSeed[i];
+    dustArr[k] += Math.sin(t * 0.2 + sd) * 0.004;
+    dustArr[k + 1] += 0.004 + Math.sin(t * 0.3 + sd * 2) * 0.003;
+    dustArr[k + 2] += Math.cos(t * 0.17 + sd) * 0.004;
+    if (dustArr[k + 1] > 20) dustArr[k + 1] = 1;
+  }
+  dustGeo.attributes.position.needsUpdate = true;
+  rainTex.offset.y += dt * 0.35;
+  const sec = new Date().getSeconds();
+  if (sec !== clockSec) { clockSec = sec; drawClock(); }
+}
+
+// Opening shot: drift in from across the room to the playing position.
+let intro = null;
+function startIntro() {
+  if (reducedMotion) return;
+  const end = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+  intro = { t: 0, dur: 4, from: new THREE.Spherical(Math.min(48, end.radius * 1.9), 1.18, end.theta + 0.8), to: end };
+  controls.enabled = false;
+  updateIntro(0);
+}
+function updateIntro(dt) {
+  if (!intro) return;
+  intro.t += dt;
+  const u = easeInOut(clamp(intro.t / intro.dur, 0, 1)), a = intro.from, b = intro.to;
+  const sp = new THREE.Spherical(a.radius + (b.radius - a.radius) * u, a.phi + (b.phi - a.phi) * u, a.theta + (b.theta - a.theta) * u);
+  camera.position.setFromSpherical(sp).add(controls.target);
+  camera.lookAt(controls.target);
+  if (u >= 1) { intro = null; controls.enabled = true; }
+}
+const skipIntro = () => { if (intro) { intro.t = intro.dur; updateIntro(0); } };
+window.addEventListener('pointerdown', skipIntro);
+window.addEventListener('keydown', skipIntro);
 
 /* ------------------------------------------------------------------ *
  *  Checkers                                                           *
@@ -1075,6 +1892,8 @@ function updateDice(dt) {
  * ------------------------------------------------------------------ */
 let state, stacks, turn = W, phase = 'opening', mode = 'ai', gen = 0;
 let turnDice = [], rem = [], legal = [], undoStack = [], selected = null, dests = new Map();
+let played = [], reviews = [], hint = null, learning = false;
+try { learning = localStorage.getItem('walnut-bg-learning') === '1'; } catch (err) { /* storage unavailable */ }
 const score = { w: 0, b: 0 };
 
 function initialStacks() {
@@ -1110,6 +1929,8 @@ function newGame(instant = false) {
   stacks = initialStacks();
   turn = W; phase = 'opening';
   turnDice = []; rem = []; legal = []; undoStack = []; selected = null; dests = new Map();
+  played = []; reviews = []; clearHint(); closeCard(false);
+  lessonsSeen = new Set();
   hideDice();
   syncPositions(instant);
   setStatus('Throw one die each to decide who moves first.');
@@ -1148,7 +1969,7 @@ async function beginTurn(vals) {
   const myGen = gen;
   turnDice = vals[0] === vals[1] ? [vals[0], vals[0], vals[0], vals[0]] : vals.slice();
   rem = turnDice.slice();
-  undoStack = []; selected = null; dests = new Map();
+  undoStack = []; selected = null; dests = new Map(); played = []; clearHint();
   turnStart = { state: cloneState(state), stacks: cloneStacks(stacks) };
   legal = legalMoves(state, turn, rem);
   if (!legal.length) {
@@ -1161,6 +1982,7 @@ async function beginTurn(vals) {
   if (!isHuman(turn)) { phase = 'ai'; refresh(); aiPlay(); return; }
   phase = 'move'; refresh();
   setStatus(mode === 'ai' ? `Play your ${diceText(vals)}.` : `${who(turn)} to play ${diceText(vals)}.`);
+  turnLessons();
 }
 
 async function doMove(m, pl) {
@@ -1181,9 +2003,10 @@ async function doMove(m, pl) {
 
 async function playPath(path) {
   const myGen = gen;
-  undoStack.push({ state: cloneState(state), stacks: cloneStacks(stacks), rem: rem.slice() });
-  phase = 'anim'; selected = null; dests = new Map(); refresh();
+  undoStack.push({ state: cloneState(state), stacks: cloneStacks(stacks), rem: rem.slice(), played: played.length });
+  phase = 'anim'; selected = null; dests = new Map(); clearHint(); closeCard(false); refresh();
   for (const m of path) {
+    played.push(m);
     await doMove(m, turn);
     if (myGen !== gen) return;
     if (state.off[sideKey(turn)] === 15) return gameOver(turn);
@@ -1199,13 +2022,15 @@ function afterMove() {
 async function undo() {
   if (!undoStack.length || (phase !== 'move' && phase !== 'done')) return;
   const myGen = gen, snap = undoStack.pop();
-  state = snap.state; stacks = snap.stacks; rem = snap.rem;
-  phase = 'anim'; selected = null; refresh();
+  state = snap.state; stacks = snap.stacks; rem = snap.rem; played.length = snap.played;
+  phase = 'anim'; selected = null; clearHint(); closeCard(false); refresh();
   await syncPositions(false);
   if (myGen === gen) afterMove();
 }
 function endTurn() {
   if (phase === 'over') return;
+  clearHint();
+  closeCard(false);
   turn = -turn;
   turnStart = null;
   phase = 'await'; turnDice = []; rem = []; legal = []; selected = null; dests = new Map(); undoStack = [];
@@ -1219,16 +2044,17 @@ async function aiPlay() {
   setStatus(`${who(turn)} plays ${diceText(turnDice.length === 4 ? turnDice : rem)}.`);
   await wait(450);
   if (myGen !== gen) return;
-  let best = null, bestScore = -Infinity;
-  for (const seq of allSequences(state, turn, rem)) {
-    const sc = evaluate(seq.state, turn) + Math.random() * 0.05;
-    if (sc > bestScore) { bestScore = sc; best = seq; }
-  }
+  const best = rankPlays(state, turn, rem)[0] || null;
   for (const m of best ? best.moves : []) {
     await doMove(m, turn);
     if (myGen !== gen) return;
     if (state.off[sideKey(turn)] === 15) return gameOver(turn);
     await wait(180);
+  }
+  if (learning && best && turnStart) {
+    const why = moveReasons(turnStart.state, best, turn).filter((r) => r.k !== 'safe' && r.k !== 'race').map((r) => r.t.toLowerCase());
+    addReview(`Computer played <strong>${esc(notation(best.moves, turn))}</strong>${why.length ? `: ${esc(listJoin(why))}` : ''}.`);
+    if (best.moves.some((m) => m.hit) && isHuman(-turn)) lesson('hitYou', 'You were hit', "Your checker is on the bar. On your next turn it must come back in through the computer's home board before anything else can move.");
   }
   await wait(450);
   if (myGen === gen) endTurn();
@@ -1243,6 +2069,7 @@ function gameOver(pl) {
     if (back) { pts = 3; kind = ' a backgammon'; }
   }
   score[sideKey(pl)] += pts;
+  for (const id of stacks[pl === W ? 'offW' : 'offB']) sparkle(checkers[id].mesh.position, 0xffd27a, 24);
   phase = 'over'; rem = []; legal = [];
   const verb = mode === 'ai' && pl === W ? 'win' : 'wins';
   setStatus(`${who(pl)} ${verb}${kind}, ${pts} point${pts > 1 ? 's' : ''}.`);
@@ -1285,11 +2112,283 @@ function refreshHud() {
   else if (phase === 'await') { pb.textContent = 'Roll'; pb.disabled = !human; }
   else if (phase === 'done') { pb.textContent = 'End turn'; pb.disabled = false; }
   else if (phase === 'over') { pb.textContent = 'Next game'; pb.disabled = false; }
-  else { pb.textContent = phase === 'move' ? 'Moving…' : phase === 'ai' ? 'Computer moving…' : 'Roll'; pb.disabled = true; }
+  else { pb.textContent = phase === 'move' ? 'Choose a move' : phase === 'ai' ? 'Computer moving…' : phase === 'review' ? 'Reviewing…' : 'Roll'; pb.disabled = true; }
   $('undoBtn').disabled = !(undoStack.length && (phase === 'move' || phase === 'done'));
   $('modeAi').setAttribute('aria-pressed', String(mode === 'ai'));
   $('modePvp').setAttribute('aria-pressed', String(mode === 'pvp'));
 }
+/* ------------------------------------------------------------------ *
+ *  Learning mode                                                      *
+ * ------------------------------------------------------------------ */
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+function addReview(html) {
+  reviews.push(html);
+  if (reviews.length > 2) reviews.shift();
+}
+function coachTip() {
+  const you = mode === 'ai' ? 'you' : who(turn);
+  const your = mode === 'ai' ? 'your' : `${who(turn)}'s`;
+  switch (phase) {
+    case 'opening':
+      return 'Each side throws one die. The higher number moves first and plays both dice. White travels from the 24 point to the 1 point, then bears off from the home board (points 1 to 6, bottom right).';
+    case 'rolling':
+      return 'The dice are thrown with real physics. A die that lands tilted against a checker or the bar is cocked and gets thrown again.';
+    case 'nomove':
+      return `No checker can legally move with this roll, so the turn passes. This happens most often when a checker on the bar faces a closed home board.`;
+    case 'ai':
+      return "Watch the computer's move. It is explained below when it finishes.";
+    case 'over':
+      return 'A plain win scores 1. A gammon (2) is when the loser has not borne off any checkers. A backgammon (3) is a gammon where the loser also has a checker on the bar or in the winner\'s home board.';
+    case 'await': {
+      const me = pipCount(state, turn), them = pipCount(state, -turn), d = them - me;
+      const lead = d > 0 ? `${cap(you)} lead${mode === 'ai' ? '' : 's'} the race by ${d}` : d < 0 ? `${cap(you)} trail${mode === 'ai' ? '' : 's'} by ${-d}` : 'The race is level';
+      return `Pip count ${me} against ${them}. ${lead}. The pip count is the total distance left to bear every checker off; an average roll is worth about 8 pips.`;
+    }
+    case 'done':
+      return rem.length ? 'No die left can be played, so the rest of the roll is forfeited. End your turn.'
+        : 'All dice are used. Undo to try something else, or end your turn to see how the coach rates it.';
+    default: break;
+  }
+  if (phase !== 'move' && phase !== 'anim') return '';
+  let tip;
+  const bar = state.bar[sideKey(turn)];
+  if (bar) tip = `${cap(your)} ${bar > 1 ? `${bar} checkers are` : 'checker is'} on the bar and must re-enter in the opponent's home board before anything else moves. A roll of n enters on ${your} (25 − n) point, so a 3 enters on 22.`;
+  else if (allHome(state, turn)) tip = 'Every checker is home, so bearing off is allowed. A die removes a checker from its matching point, or from the highest occupied point when the die is larger than any of them.';
+  else if (turnDice.length === 4 && rem.length === 4) tip = `Doubles: play the ${turnDice[0]} four times, with one checker or several.`;
+  else if (selected !== null) {
+    const hits = [...dests.values()].filter((p) => p.some((m) => m.hit)).map((p) => ptName(turn, p[p.length - 1].to));
+    tip = 'Gold arrows mark where this checker can land. Points further away use both dice.' + (hits.length ? ` Landing on ${listJoin(hits)} hits a blot and sends it to the bar.` : '');
+  } else {
+    const blocked = rem.some((d) => singleMoves(state, turn, d).some((m) => !legal.some((l) => l.from === m.from && l.die === m.die)));
+    tip = blocked ? 'Some checkers are not lit because the rules make you use as much of the roll as possible, and the larger die when only one can be played.'
+      : 'Click a glowing checker, then a gold arrow. Two or more checkers make a point safe; a lone checker is a blot and can be hit. Press Hint for the coach\'s choice.';
+  }
+  if (played.length) {
+    const bl = exposedBlots(state, turn);
+    if (bl.length) tip += ` Right now ${your} blot on ${bl[0].q} is hit by ${bl[0].shots} of 36 rolls.`;
+  }
+  return tip;
+}
+function renderCoach() {
+  $('coach').hidden = !learning || !$('card').hidden;
+  $('hintBtn').hidden = !learning;
+  $('hintBtn').disabled = !(learning && phase === 'move' && isHuman(turn));
+  $('learnBtn').setAttribute('aria-pressed', String(learning));
+  if (!learning) return;
+  $('coachTip').textContent = coachTip();
+  $('coachHint').hidden = true;
+  $('coachReview').innerHTML = reviews.map((r) => `<p>${r}</p>`).join('');
+}
+// Draw a play as arcs that trace themselves while ghost checkers fly the move, on a loop.
+let hintAnim = null;
+function drawPlay(play, baseStacks) {
+  clearHint();
+  hint = play;
+  const lens = Object.fromEntries(Object.entries(baseStacks).map(([k, v]) => [k, v.length]));
+  const parts = play.moves.map((m, i) => {
+    const sk = locKey(turn, m.from), dk = locKey(turn, m.to);
+    const a = slotPos(sk, lens[sk] - 1); lens[sk]--;
+    if (m.hit) lens[dk]--;
+    const b = slotPos(dk, lens[dk]); lens[dk]++;
+    a.y += H / 2 + 0.02; b.y += H / 2;
+    const mid = a.clone().lerp(b, 0.5); mid.y += 1.2 + a.distanceTo(b) * 0.1;
+    const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.06, 8, false), hintMat);
+    const tip = new THREE.Mesh(arrowGeo, hintMat);
+    tip.position.copy(curve.getPoint(0.93));
+    tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), curve.getTangent(0.95).normalize());
+    tip.scale.setScalar(0.85);
+    const bd = badge(i + 1);
+    bd.position.copy(curve.getPoint(0.5)).add(new THREE.Vector3(0, 0.3, 0));
+    const ghost = new THREE.Mesh(checkerGeo, ghostMat);
+    hintGroup.add(tube, tip, bd, ghost);
+    return { curve, tube, tip, bd, ghost, landed: false };
+  });
+  hintAnim = { t: 0, parts, total: parts.length * 1.05 + 0.4 };
+  refresh();
+}
+function updateHintAnim(dt) {
+  if (!hintAnim) return;
+  hintAnim.t += reducedMotion ? 99 : dt;
+  const T = hintAnim.t;
+  hintAnim.parts.forEach((pt, i) => {
+    const local = T - i * 1.05;
+    const p = clamp(local / 0.5, 0, 1), cnt = pt.tube.geometry.index.count;
+    pt.tube.geometry.setDrawRange(0, Math.floor((cnt * p) / 3) * 3);
+    pt.tip.visible = p >= 1; pt.bd.visible = local > 0;
+    const u = clamp((local - 0.2) / 0.85, 0, 1);
+    pt.ghost.visible = local > 0;
+    pt.ghost.position.copy(pt.curve.getPoint(easeInOut(u))); pt.ghost.position.y -= H / 2;
+    if (u >= 1 && !pt.landed) { pt.landed = true; Snd.checker(2.4, 'checker', pt.ghost.position.x); }
+  });
+  if (!reducedMotion && T > hintAnim.total + 2.2) { hintAnim.t = 0; hintAnim.parts.forEach((pt) => { pt.landed = false; }); }
+}
+function clearHint() {
+  hint = null; hintAnim = null;
+  for (const ch of [...hintGroup.children]) {
+    hintGroup.remove(ch);
+    if (!ch.isSprite && ch.geometry !== arrowGeo && ch.geometry !== checkerGeo) ch.geometry.dispose();
+    if (ch.material !== hintMat && ch.material !== ghostMat) { ch.material.map?.dispose(); ch.material.dispose(); }
+  }
+}
+function badge(n) {
+  const tex = canvasTex(64, 64, (g, w, h) => {
+    g.fillStyle = '#5fd4c4'; g.beginPath(); g.arc(w / 2, h / 2, w / 2 - 2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#0e1d1b'; g.font = '600 38px Figtree, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(String(n), w / 2, h / 2 + 2);
+  });
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, toneMapped: false }));
+  sp.scale.set(0.45, 0.45, 1);
+  sp.renderOrder = 5;
+  return sp;
+}
+
+/* ---- Coach card ---- */
+let cardOnClose = null;
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function openCard({ title, badge: bdg, moveHtml, reasons, alts, actions, onClose }) {
+  const card = $('card');
+  card.hidden = true; void card.offsetWidth; // restart the entrance animation
+  $('cardTitle').textContent = title;
+  $('cardBadge').hidden = !bdg;
+  if (bdg) { $('cardBadge').className = `grade big g-${bdg[0]}`; $('cardBadge').textContent = bdg[1]; }
+  $('cardMove').innerHTML = moveHtml || '';
+  $('cardReasons').innerHTML = (reasons || []).map((r, i) => `<li style="--i:${i};--dot:${DOT[r.k] || '#c9a35c'}"><div><b>${esc(r.t)}</b><span>${esc(r.x)}</span></div></li>`).join('');
+  $('cardAlts').hidden = !alts;
+  $('cardAlts').innerHTML = alts || '';
+  $('cardActions').innerHTML = '';
+  for (const a of actions || []) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn' + (a.primary ? ' primary' : ''); b.textContent = a.label;
+    b.addEventListener('click', () => { Snd.init(); a.run(); });
+    $('cardActions').appendChild(b);
+  }
+  cardOnClose = onClose || null;
+  card.hidden = false;
+  if (navActive || tvMode) (card.querySelector('.card-actions .btn.primary') || card.querySelector('.card-actions .btn'))?.focus({ preventScroll: true });
+  renderCoach();
+}
+function closeCard(runHook = true) {
+  if ($('card').hidden) return;
+  $('card').hidden = true;
+  const hook = cardOnClose; cardOnClose = null;
+  renderCoach();
+  if (runHook && hook) hook();
+}
+$('cardClose').addEventListener('click', () => closeCard());
+function altsHtml(plays, pl, mineKey, mineScore) {
+  const best = plays[0].score;
+  const rows = plays.slice(0, 4).map((q, i) => ({ nota: notation(q.moves, pl), loss: best - q.score, best: i === 0, you: keyOf(q.state) === mineKey }));
+  if (mineKey && !rows.some((r) => r.you)) rows.push({ nota: notation(played, pl), loss: best - mineScore, you: true });
+  return '<h3>How the options compare</h3>' + rows.map((r) => {
+    const w = Math.max(5, Math.round(100 * Math.exp(-Math.max(0, r.loss) / 12)));
+    const tag = r.best ? 'best' : r.loss < 0.75 ? 'equal' : r.loss < 4 ? 'close' : r.loss < 12 ? 'weaker' : 'poor';
+    return `<div class="alt${r.best ? ' is-best' : ''}${r.you ? ' is-you' : ''}"><span>${esc(r.nota)}${r.you ? ' · you' : ''}</span><span class="meter"><i style="--w:${w}%"></i></span><span class="loss">${tag}</span></div>`;
+  }).join('');
+}
+
+// Hint: the coach works out the best play, animates it on the board and explains it.
+function showHint() {
+  if (!learning || phase !== 'move' || !isHuman(turn)) return;
+  selected = null; dests = new Map();
+  openCard({ title: "Coach's best move", moveHtml: '<span class="thinking" aria-label="Thinking"><i></i><i></i><i></i></span>', reasons: [] });
+  const myGen = gen, snapKey = keyOf(state) + remKey(rem);
+  setTimeout(() => {
+    if (myGen !== gen || phase !== 'move' || keyOf(state) + remKey(rem) !== snapKey) return;
+    const plays = rankPlays(state, turn, rem);
+    if (!plays.length) { closeCard(false); return; }
+    const best = plays[0];
+    drawPlay(best, stacks);
+    openCard({
+      title: "Coach's best move",
+      moveHtml: `<small>With ${diceText(rem)}</small><span class="nota">${esc(notation(best.moves, turn))}</span>`,
+      reasons: moveReasons(state, best, turn),
+      alts: plays.length > 1 ? altsHtml(plays, turn) : '',
+      actions: [
+        { label: 'Play it', primary: true, run: () => { closeCard(false); playPath(best.moves); } },
+        { label: 'Replay', run: () => { if (hintAnim) { hintAnim.t = 0; hintAnim.parts.forEach((pt) => { pt.landed = false; }); } } },
+        { label: 'Close', run: () => closeCard() },
+      ],
+    });
+  }, 40);
+}
+
+// End-of-turn review: grade the play against the coach's ranking of every alternative.
+function startReview() {
+  const myGen = gen;
+  phase = 'review'; refresh();
+  setStatus('The coach is reviewing your move…');
+  setTimeout(() => {
+    if (myGen !== gen) return;
+    const before = turnStart.state, plays = rankPlays(before, turn, turnDice, 8);
+    const mineKey = keyOf(state), inList = plays.find((q) => keyOf(q.state) === mineKey);
+    const mineScore = inList ? inList.score : plyScore(state, turn);
+    const best = plays[0], same = keyOf(best.state) === mineKey, loss = same ? 0 : best.score - mineScore;
+    // Calibrated on self-play: the runner-up is typically ~3 behind the best play, a random legal play ~15.
+    const [cls, label] = same || loss < 0.75 ? ['best', 'Best move'] : loss < 4 ? ['good', 'Good'] : loss < 12 ? ['doubtful', 'Doubtful'] : ['bad', 'Mistake'];
+    const by = mode === 'ai' ? 'You played' : `${who(turn)} played`;
+    addReview(`${by} <strong>${esc(notation(played, turn))}</strong><span class="grade g-${cls}">${label}</span>${same ? '' : `. Best: <span class="hint-text">${esc(notation(best.moves, turn))}</span>`}`);
+    const mine = { moves: played.slice(), state };
+    const finish = () => { if (myGen === gen && phase === 'review') { phase = 'done'; endTurn(); } };
+    if (cls === 'best' || cls === 'good') {
+      if (cls === 'best') for (const m of played) { const st = stacks[locKey(turn, m.to)]; if (st && st.length) sparkle(checkers[st[st.length - 1]].mesh.position); }
+      openCard({
+        title: cls === 'best' ? 'Exactly right' : 'Good move',
+        badge: [cls, label],
+        moveHtml: `<small>You played</small><span class="nota mine">${esc(notation(played, turn))}</span>` + (same ? '' : `<small>The coach slightly prefers</small><span class="nota">${esc(notation(best.moves, turn))}</span>`),
+        reasons: same ? moveReasons(before, { ...mine, book: best.book }, turn) : compareReasons(before, best, mine, turn),
+        alts: plays.length > 1 ? altsHtml(plays, turn, mineKey, mineScore) : '',
+        actions: [{ label: 'Continue', primary: true, run: () => closeCard() }],
+        onClose: finish,
+      });
+      return;
+    }
+    openCard({
+      title: cls === 'bad' ? 'There was a much better move' : 'There was a better move',
+      badge: [cls, label],
+      moveHtml: `<small>You played</small><span class="nota mine">${esc(notation(played, turn))}</span><small>Best move</small><span class="nota">${esc(notation(best.moves, turn))}</span>`,
+      reasons: compareReasons(before, best, mine, turn),
+      alts: altsHtml(plays, turn, mineKey, mineScore),
+      actions: [
+        { label: 'Show me the best move', primary: true, run: () => { closeCard(false); takeBackAndShow(); } },
+        { label: 'Keep my move', run: () => closeCard() },
+      ],
+      onClose: finish,
+    });
+  }, 40);
+}
+async function takeBackAndShow() {
+  const myGen = gen;
+  state = cloneState(turnStart.state); stacks = cloneStacks(turnStart.stacks);
+  rem = turnDice.slice(); played = []; undoStack = []; selected = null; dests = new Map();
+  phase = 'anim'; refresh();
+  setStatus('Taking your move back…');
+  await syncPositions(false);
+  if (myGen !== gen) return;
+  afterMove();
+  showHint();
+}
+
+/* ---- One-off lessons ---- */
+let lessonsSeen = new Set(), lessonTimer = 0;
+function lesson(key, title, text) {
+  if (!learning || lessonsSeen.has(key)) return;
+  lessonsSeen.add(key);
+  $('lessonTitle').textContent = title; $('lessonText').textContent = text;
+  const el = $('lesson'); el.hidden = true; void el.offsetWidth; el.hidden = false;
+  clearTimeout(lessonTimer);
+  lessonTimer = setTimeout(() => { el.hidden = true; }, 9000);
+}
+$('lessonClose').addEventListener('click', () => { $('lesson').hidden = true; });
+function turnLessons() {
+  if (!isHuman(turn)) return;
+  const bar = state.bar[sideKey(turn)];
+  if (bar) lesson('bar', 'Back in from the bar', `A checker on the bar must re-enter first, in your opponent's home board. A roll of n enters on your ${25}−n point, so a 2 enters on 23. If that point holds two or more of theirs, that number is blocked.`);
+  else if (allHome(state, turn)) lesson('bearoff', 'Time to bear off', 'All fifteen checkers are home, so you can start taking them off. A die removes a checker from its matching point, or from your highest point when the die is bigger than anything left.');
+  else if (turnDice.length === 4) lesson('doubles', 'Doubles!', `Rolling a double means you play that number four times: ${turnDice[0]}, ${turnDice[0]}, ${turnDice[0]}, ${turnDice[0]}. You can move one checker or several.`);
+  else if (exposedBlots(state, turn).length && inContact(state, turn) && turnStart && !lessonsSeen.has('blot')) lesson('blot', 'Watch your blots', 'A point with only one of your checkers is a blot. If your opponent lands on it, that checker goes to the bar and has to start again. Two or more checkers make a point safe.');
+}
+
 let sources = new Set(), movableTops = new Set(), selectedTop = -1;
 function refresh() {
   sources = new Set(); movableTops = new Set(); selectedTop = -1;
@@ -1299,7 +2398,7 @@ function refresh() {
     if (selected !== null) { const st = stacks[locKey(turn, selected)]; selectedTop = st[st.length - 1]; }
   }
   for (const ov of Object.values(overlays)) ov.visible = false;
-  rings.forEach((r) => { r.visible = false; });
+  for (const m of [...rings, ...arrows, ...halos]) m.visible = false;
   let ri = 0;
   for (const [to, path] of dests) {
     const key = locKey(turn, to), last = path[path.length - 1];
@@ -1307,17 +2406,21 @@ function refresh() {
     if (ri < rings.length) {
       const p = slotPos(key, last.hit ? 0 : stacks[key].length);
       rings[ri].position.set(p.x, p.y - H / 2 + 0.012, p.z);
-      rings[ri].visible = true; ri++;
+      arrows[ri].userData.base.set(p.x, p.y + 0.85, p.z);
+      rings[ri].visible = arrows[ri].visible = true; ri++;
     }
   }
+  let hi = 0;
+  for (const id of movableTops) if (hi < halos.length) { halos[hi].userData.id = id; halos[hi].visible = true; hi++; }
   refreshHud();
+  renderCoach();
 }
 
 function primaryAction() {
   Snd.init();
   if (phase === 'opening') openingRoll();
   else if (phase === 'await' && isHuman(turn)) rollFor(turn);
-  else if (phase === 'done') endTurn();
+  else if (phase === 'done') { if (learning && isHuman(turn) && turnStart && played.length) startReview(); else endTurn(); }
   else if (phase === 'over') newGame(false);
 }
 $('primaryBtn').addEventListener('click', primaryAction);
@@ -1342,12 +2445,31 @@ function endTurnStatusRefresh() {
 // After a mouse or touch press, hand focus back to the table so Space still rolls.
 document.querySelectorAll('button').forEach((b) => b.addEventListener('pointerup', () => setTimeout(() => b.blur(), 0)));
 $('modeAi').addEventListener('click', () => setMode('ai'));
+$('learnBtn').addEventListener('click', () => {
+  learning = !learning;
+  try { localStorage.setItem('walnut-bg-learning', learning ? '1' : '0'); } catch (err) { /* storage unavailable */ }
+  if (!learning) { clearHint(); closeCard(false); $('lesson').hidden = true; }
+  refresh();
+});
+$('hintBtn').addEventListener('click', () => { Snd.init(); showHint(); });
 $('modePvp').addEventListener('click', () => setMode('pvp'));
+// Keyboards, TV remotes (arrows, OK, Back) and media keys all map onto the same few actions.
+const BACK_KEYS = new Set(['Escape', 'Backspace', 'GoBack', 'BrowserBack']);
+const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 window.addEventListener('keydown', (e) => {
-  if (e.target.closest && e.target.closest('button, input, select, textarea')) return;
-  if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); primaryAction(); }
-  else if (e.key === 'u' || e.key === 'U' || ((e.ctrlKey || e.metaKey) && e.key === 'z')) { e.preventDefault(); undo(); }
-  else if (e.key === 'Escape') { selected = null; dests = new Map(); refresh(); }
+  const onButton = e.target.closest && e.target.closest('button, input, select, textarea');
+  if (onButton && (e.key === 'Enter' || e.key === ' ')) return; // let the focused button press itself
+  let act = null;
+  if (ARROWS[e.key]) act = ARROWS[e.key];
+  else if (e.key === 'Enter' || e.key === 'Select' || e.keyCode === 23) act = 'ok';
+  else if (e.code === 'Space' || e.key === 'MediaPlayPause') act = 'primary';
+  else if (BACK_KEYS.has(e.key) || e.keyCode === 461 || e.keyCode === 10009) act = 'back';
+  else if (e.key === 'u' || e.key === 'U' || ((e.ctrlKey || e.metaKey) && e.key === 'z')) act = 'undo';
+  else if (e.key === 'h' || e.key === 'H') act = 'hint';
+  else if (e.key === 't' || e.key === 'T') act = 'tv';
+  if (!act) return;
+  e.preventDefault();
+  navAction(act, 'keys');
 });
 
 /* ------------------------------------------------------------------ *
@@ -1371,6 +2493,7 @@ canvas.addEventListener('pointerup', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse' || down) return;
+  if (!tvMode) navActive = false;
   const loc = phase === 'move' && isHuman(turn) ? pickLoc(e) : null;
   canvas.classList.toggle('can-pick', loc !== null && (sources.has(loc) || dests.has(loc)));
 });
@@ -1387,6 +2510,192 @@ function handleClick(loc) {
 }
 
 /* ------------------------------------------------------------------ *
+ *  TV mode: remote / keyboard / gamepad navigation                    *
+ * ------------------------------------------------------------------ */
+let navActive = false, navIdx = 0, navLastSel = null, navInput = 'keys';
+// The things you can choose right now: movable checkers, or, once one is picked, where it can go.
+function navOptions() {
+  if (phase !== 'move' || !isHuman(turn)) return [];
+  if (selected === null) {
+    return [...sources].map((loc) => {
+      const st = stacks[locKey(turn, loc)];
+      return { loc, pos: checkers[st[st.length - 1]].mesh.position.clone() };
+    });
+  }
+  return [...dests].map(([to, path]) => {
+    const key = locKey(turn, to), last = path[path.length - 1];
+    return { loc: to, pos: slotPos(key, last.hit ? 0 : stacks[key].length) };
+  });
+}
+// Pick the nearest option in the pressed direction, as seen on screen; wrap round at the edges.
+function spatialNext(opts, i, dir) {
+  if (opts.length < 2) return 0;
+  const scr = opts.map((o) => { const v = o.pos.clone().project(camera); return [v.x * camera.aspect, v.y]; });
+  const [dx, dy] = { left: [-1, 0], right: [1, 0], up: [0, 1], down: [0, -1] }[dir];
+  const [cx, cy] = scr[i];
+  let best = -1, bestScore = Infinity, far = -1, farAlong = Infinity;
+  scr.forEach(([x, y], j) => {
+    if (j === i) return;
+    const ax = x - cx, ay = y - cy, along = ax * dx + ay * dy, perp = Math.abs(ax * dy - ay * dx);
+    if (along > 0.01) { const sc = along + perp * 2.2; if (sc < bestScore) { bestScore = sc; best = j; } }
+    else if (along < farAlong - 1e-6 || (Math.abs(along - farAlong) < 1e-6 && perp < 0.2)) { farAlong = along; far = j; }
+  });
+  return best >= 0 ? best : far >= 0 ? far : i;
+}
+function navAction(act, input = 'keys') {
+  skipIntro();
+  Snd.init();
+  navInput = input;
+  if (act === 'tv') { setTv(!tvMode); return; }
+  if (!$('lesson').hidden && (act === 'ok' || act === 'back')) { $('lesson').hidden = true; return; }
+  // A coach card is open: move between its buttons.
+  if (!$('card').hidden) {
+    const btns = [...$('card').querySelectorAll('button')].filter((b) => !b.hidden);
+    const cur = btns.indexOf(document.activeElement);
+    if (act === 'back') { closeCard(); return; }
+    if (ARROWS_DIR.has(act)) {
+      const step = act === 'left' || act === 'up' ? -1 : 1;
+      const start = cur < 0 ? btns.findIndex((b) => b.classList.contains('primary')) - step : cur;
+      btns[(Math.max(-1, start) + step + btns.length) % btns.length].focus();
+      return;
+    }
+    if (act === 'ok') { (cur >= 0 ? btns[cur] : btns.find((b) => b.classList.contains('primary')) || btns[0])?.click(); return; }
+  }
+  if (act === 'hint') { showHint(); return; }
+  if (act === 'undo') { undo(); return; }
+  if (act === 'primary') { primaryAction(); return; }
+  if (phase === 'move' && isHuman(turn)) {
+    const opts = navOptions();
+    navActive = true;
+    if (act === 'back') { if (selected !== null) { selected = null; dests = new Map(); refresh(); restoreNavToSource(); } return; }
+    if (!opts.length) return;
+    navIdx = clamp(navIdx, 0, opts.length - 1);
+    if (act === 'ok') {
+      const o = opts[navIdx];
+      if (selected === null) navLastSel = o.loc;
+      handleClick(o.loc);
+      if (selected !== null) navIdx = 0;
+      return;
+    }
+    if (ARROWS_DIR.has(act)) { navIdx = spatialNext(opts, navIdx, act); Snd.pickup(opts[navIdx].pos.x); }
+    return;
+  }
+  if (act === 'ok') primaryAction();
+  else if (act === 'back' && selected !== null) { selected = null; dests = new Map(); refresh(); }
+}
+const ARROWS_DIR = new Set(['left', 'right', 'up', 'down']);
+function restoreNavToSource() {
+  const opts = navOptions(), i = opts.findIndex((o) => o.loc === navLastSel);
+  navIdx = i >= 0 ? i : 0;
+}
+
+// The cursor: a bright teal ring with a bouncing arrow over whatever is chosen.
+const cursorMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x7ff0e0).multiplyScalar(3), transparent: true, opacity: 0.95, toneMapped: false, depthWrite: false });
+const cursorRing = new THREE.Mesh(new THREE.TorusGeometry(R * 1.3, 0.11, 12, 48), cursorMat);
+cursorRing.rotation.x = -Math.PI / 2;
+const cursorDisc = new THREE.Mesh(new THREE.CircleGeometry(R * 1.25, 40), new THREE.MeshBasicMaterial({ color: 0x7ff0e0, transparent: true, opacity: 0.28, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+cursorDisc.rotation.x = -Math.PI / 2;
+cursorRing.add(cursorDisc);
+const cursorArrow = new THREE.Mesh(arrowGeo, cursorMat);
+cursorArrow.scale.setScalar(2.1);
+cursorRing.visible = cursorArrow.visible = false;
+cursorRing.renderOrder = cursorArrow.renderOrder = 4;
+scene.add(cursorRing, cursorArrow);
+
+// Gamepads: D-pad or left stick to choose, A select, B back, X hint, Y undo, Start roll / end turn.
+const padPrev = new Map();
+let padRepeat = 0, padDir = null, padSeen = false;
+const PAD_BUTTONS = { 0: 'ok', 1: 'back', 2: 'hint', 3: 'undo', 9: 'primary', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
+function pollGamepads(dt) {
+  let pads;
+  try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (err) { return; }
+  for (const gp of pads || []) {
+    if (!gp) continue;
+    if (!padSeen) { padSeen = true; updateLegend(); }
+    const prev = padPrev.get(gp.index) || [];
+    gp.buttons.forEach((b, i) => {
+      const was = prev[i];
+      if (b.pressed && !was && PAD_BUTTONS[i]) navAction(PAD_BUTTONS[i], 'pad');
+    });
+    padPrev.set(gp.index, gp.buttons.map((b) => b.pressed));
+    const [ax, ay] = gp.axes;
+    const dir = Math.abs(ax) > 0.6 ? (ax < 0 ? 'left' : 'right') : Math.abs(ay) > 0.6 ? (ay < 0 ? 'up' : 'down') : null;
+    if (dir !== padDir) { padDir = dir; padRepeat = 0.4; if (dir) navAction(dir, 'pad'); }
+    else if (dir) { padRepeat -= dt; if (padRepeat <= 0) { padRepeat = 0.18; navAction(dir, 'pad'); } }
+  }
+}
+window.addEventListener('gamepadconnected', () => { padSeen = true; updateLegend(); toast('Controller connected'); });
+
+let idleTimer = 0;
+function updateNav(now, dt) {
+  pollGamepads(dt);
+  const opts = navActive || tvMode ? navOptions() : [];
+  const show = opts.length > 0 && $('card').hidden;
+  cursorRing.visible = cursorArrow.visible = show;
+  if (!show) return;
+  navIdx = clamp(navIdx, 0, opts.length - 1);
+  const p = opts[navIdx].pos, onChecker = selected === null;
+  const top = onChecker ? p.y + H / 2 + 0.03 : p.y - H / 2 + 0.02;
+  cursorRing.position.set(p.x, top, p.z);
+  cursorRing.scale.setScalar(1 + 0.08 * Math.sin(now * 0.008));
+  cursorArrow.position.set(p.x, top + 1.8 + 0.22 * Math.sin(now * 0.006), p.z);
+  cursorArrow.rotation.y = now * 0.003;
+}
+
+function updateLegend() {
+  if (!tvMode) { $('sub').textContent = 'Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.'; return; }
+  $('sub').textContent = padSeen
+    ? 'D-pad chooses · A selects · B goes back · X hint · Y undo · Start rolls'
+    : 'Arrows choose · OK selects · Back cancels · H hint · U undo · Space rolls';
+}
+function setTv(on) {
+  tvMode = on;
+  document.documentElement.classList.toggle('tv', on);
+  $('tvBtn').setAttribute('aria-pressed', String(on));
+  $('fullBtn').hidden = !on;
+  try { localStorage.setItem('walnut-bg-tv', on ? '1' : '0'); } catch (err) { /* storage unavailable */ }
+  if (on) { navActive = true; armIdle(); }
+  else document.documentElement.classList.remove('idle');
+  updateLegend();
+  viewPortrait = null;
+  fitView();
+}
+function armIdle() {
+  document.documentElement.classList.remove('idle');
+  clearTimeout(idleTimer);
+  if (tvMode) idleTimer = setTimeout(() => document.documentElement.classList.add('idle'), 3000);
+}
+window.addEventListener('mousemove', armIdle);
+$('tvBtn').addEventListener('click', () => setTv(!tvMode));
+$('fullBtn').addEventListener('click', () => {
+  const el = document.documentElement;
+  const req = document.fullscreenElement ? document.exitFullscreen?.() : el.requestFullscreen?.();
+  Promise.resolve(req).catch(() => toast('Full screen is not available here. Try your browser’s own full-screen key.'));
+});
+
+// Graphics quality. Smooth drops bloom, dust and embers and renders at 1x for weaker TVs and sticks.
+let qualityChosen = false;
+function setQuality(q, chosen = true) {
+  quality = q;
+  if (chosen) { qualityChosen = true; try { localStorage.setItem('walnut-bg-quality', q); } catch (err) { /* storage unavailable */ } }
+  dustPts.visible = emberPts.visible = q === 'high';
+  lamp.shadow.mapSize.set(q === 'high' ? 2048 : 1024, q === 'high' ? 2048 : 1024);
+  if (lamp.shadow.map) { lamp.shadow.map.dispose(); lamp.shadow.map = null; }
+  $('qualityBtn').textContent = `Graphics: ${q === 'high' ? 'High' : 'Smooth'}`;
+  fitView();
+}
+$('qualityBtn').addEventListener('click', () => setQuality(quality === 'high' ? 'low' : 'high'));
+// If the first few seconds of play run slowly, switch to Smooth once (unless the viewer chose).
+let fpsT = 0, fpsN = 0, fpsDone = false;
+function trackFps(dt) {
+  if (fpsDone || intro || document.hidden) return;
+  fpsT += dt; fpsN++;
+  if (fpsT < 6) return;
+  fpsDone = true;
+  if (!qualityChosen && quality === 'high' && fpsN / fpsT < 28) { setQuality('low', false); toast('Switched to smooth graphics for this screen'); }
+}
+
+/* ------------------------------------------------------------------ *
  *  Main loop                                                          *
  * ------------------------------------------------------------------ */
 let last = performance.now();
@@ -1396,18 +2705,37 @@ function frame(now) {
   updateCheckers(dt);
   world.step(1 / 120, dt, 8);
   updateDice(dt);
-  const pulse = 0.5 + 0.5 * Math.sin(now * 0.006);
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.006), anySel = selectedTop >= 0;
   for (const c of checkers) {
-    const sel = c.id === selectedTop;
-    c.lift += ((sel ? 0.16 : 0) - c.lift) * Math.min(1, dt * 14);
-    c.mesh.material.emissiveIntensity = sel ? 0.4 : movableTops.has(c.id) ? 0.08 + 0.14 * pulse : 0;
+    const sel = c.id === selectedTop, movable = movableTops.has(c.id);
+    c.lift += ((sel ? 0.34 : 0) - c.lift) * Math.min(1, dt * 14);
+    c.mesh.material.emissiveIntensity = sel ? 0.8 : movable ? (anySel ? 0.18 : 0.22 + 0.4 * pulse) : 0;
     c.mesh.position.set(c.body.position.x, c.body.position.y + c.lift, c.body.position.z);
     c.mesh.quaternion.set(c.body.quaternion.x, c.body.quaternion.y, c.body.quaternion.z, c.body.quaternion.w);
   }
-  for (const ov of Object.values(overlays)) if (ov.visible) ov.material.opacity = 0.16 + 0.2 * pulse;
-  for (const r of rings) if (r.visible) r.material.opacity = 0.45 + 0.4 * pulse;
-  controls.update();
-  renderer.render(scene, camera);
+  for (const h of halos) if (h.visible) {
+    const c = checkers[h.userData.id], sel = c.id === selectedTop;
+    h.position.set(c.mesh.position.x, c.mesh.position.y + H / 2 + 0.008, c.mesh.position.z);
+    h.material.opacity = sel ? 1 : anySel ? 0.3 : 0.5 + 0.5 * pulse;
+    h.scale.setScalar(sel ? 1.08 : 0.94 + 0.1 * pulse);
+  }
+  for (const ov of Object.values(overlays)) if (ov.visible) ov.material.opacity = 0.28 + 0.3 * pulse;
+  for (const r of rings) if (r.visible) r.material.opacity = 0.6 + 0.4 * pulse;
+  arrows.forEach((a, i) => {
+    if (!a.visible) return;
+    a.position.copy(a.userData.base);
+    a.position.y += 0.14 * Math.sin(now * 0.007 + i * 0.7);
+    a.rotation.y = now * 0.002;
+    a.material.opacity = 0.85 + 0.15 * pulse;
+  });
+  if (hint) hintMat.opacity = 0.7 + 0.25 * pulse;
+  updateHintAnim(dt);
+  updateBursts(dt);
+  updateRoom(dt, now);
+  if (intro) updateIntro(dt); else controls.update();
+  updateNav(now, dt);
+  trackFps(dt);
+  if (composer && quality === 'high') composer.render(); else renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 
@@ -1416,8 +2744,14 @@ function frame(now) {
  * ------------------------------------------------------------------ */
 let turnStart = null;
 function start(data) {
+  let wantTv = location.hash === '#tv', savedQ = null;
+  try { wantTv = wantTv || localStorage.getItem('walnut-bg-tv') === '1'; savedQ = localStorage.getItem('walnut-bg-quality'); } catch (err) { /* storage unavailable */ }
+  if (savedQ === 'low' || savedQ === 'high') { quality = savedQ; qualityChosen = true; }
+  setQuality(quality, false);
+  if (wantTv) setTv(true);
   fitView();
   newGame(true);
+  if (!(data && data.state)) startIntro();
   if (data && data.state && data.stacks) {
     state = data.state; stacks = data.stacks; turn = data.turn === B ? B : W; mode = data.mode === 'pvp' ? 'pvp' : 'ai';
     Object.assign(score, data.score || {});
