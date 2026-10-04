@@ -276,7 +276,7 @@ html.tv .invite-link code { font-size: 18px; }
 
 <header class="bar top">
   <section class="panel status-panel">
-    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 16</span></p>
+    <p class="eyebrow">Backgammon <span class="build" title="Version of the game you are running">build 17</span></p>
     <p id="status" class="status" aria-live="polite">Throw one die each to decide who moves first.</p>
     <p id="sub" class="sub">Click a glowing checker, then a gold arrow. Space rolls, U undoes. Drag to orbit.</p>
   </section>
@@ -1106,6 +1106,7 @@ function fitView() {
     const polar = portrait ? 0.42 : 0.68;
     const flip = remote && remote.seat === 'b' ? -1 : 1; // a remote Black player looks from Black's side of the table
     dir = portrait ? new THREE.Vector3(flip * Math.sin(polar), Math.cos(polar), 0) : new THREE.Vector3(0, Math.cos(polar), flip * Math.sin(polar));
+    orientLabels();
   } else dir = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(dir, d);
   if (cam.home) cam.home.pos.copy(camera.position);
@@ -1342,20 +1343,31 @@ function updateBursts(dt) {
   }
 }
 
-// Point numbers along the frame, as on a tournament board.
+// Point numbers along the frame, as on a tournament board. A remote Black player sees
+// their own numbering (25 - p, matching the coach's notation), turned to read from their side.
+var pointLabels = []; // var: fitView can run before this line is reached
 function makeLabels() {
+  const blackSide = remote && remote.seat === 'b';
   for (let p = 1; p <= 24; p++) {
     const tex = canvasTex(128, 96, (g, w, h) => {
       g.fillStyle = '#c9a35c';
       g.font = '50px "Marcellus SC", Georgia, serif';
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(String(p), w / 2, h / 2 + 3);
+      g.fillText(String(blackSide ? 25 - p : p), w / 2, h / 2 + 3);
     });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.42), new THREE.MeshBasicMaterial({ map: tex, transparent: true, color: 0xe8c890, depthWrite: false }));
     m.rotation.x = -Math.PI / 2;
     m.position.set(colX(pointCol(p)), FH + 0.003, (p <= 12 ? 1 : -1) * (HZ + FT / 2));
     scene.add(m);
+    pointLabels.push(m);
   }
+  orientLabels();
+}
+// Turn the numbers so they read upright from wherever the default view sits.
+function orientLabels() {
+  const flip = remote && remote.seat === 'b';
+  const rz = viewPortrait ? (flip ? -Math.PI / 2 : Math.PI / 2) : flip ? Math.PI : 0;
+  for (const m of pointLabels || []) m.rotation.z = rz;
 }
 (document.fonts ? document.fonts.load('50px "Marcellus SC"').catch(() => {}) : Promise.resolve()).then(makeLabels);
 
