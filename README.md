@@ -57,7 +57,7 @@ network connection.
 - **The room.** The board sits on a card table under a pendant lamp, in a
   panelled room with a log fire, a rainy moonlit window, a bookcase and a
   mantel clock that shows your real local time. Bloom, flickering fire and
-  candle light, embers and dust in the lamp beam set the mood. The fire crackles
+  candle light, soft contact shadows under the checkers, embers and dust in the lamp beam set the mood. The fire crackles
   and the clock ticks in the background. The page opens with a camera drift
   across the room; click or press a key to skip it.
 - **Opponents.** Play against a heuristic computer player, or two players can
